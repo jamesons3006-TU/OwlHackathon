@@ -14,17 +14,22 @@ photo ──► detector (fine-tuned Faster R-CNN) ──► boxes ──► 0�
 
 ## Run the backend
 
+Use PowerShell from the repository root, or `cd` into `backend` first. The key is that the virtual environment and app module must be resolved from the backend folder.
+
 ```powershell
-cd backend
+cd .\backend
 python -m venv .venv
-.\.venv\Scripts\pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-.\.venv\Scripts\pip install -r requirements.txt
-.\.venv\Scripts\uvicorn app.main:app --reload
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
+
+If you are already inside `backend`, omit the first `cd` and keep the same `.venv\Scripts\python.exe -m ...` commands.
 
 Interactive API docs: http://127.0.0.1:8000/docs. For front-end work without a model, set `$env:PWW_DETECTOR="mock"` first.
 
-Run the tests with `.\.venv\Scripts\pytest`.
+Run the tests with `.\.venv\Scripts\python.exe -m pytest` from the `backend` directory.
 
 ## Plugging in the model
 
