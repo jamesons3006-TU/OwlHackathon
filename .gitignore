@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+backend/.venv/
+backend/data/
+backend/models/*.pt
+*.pt
+*.pth
+runs/
+
+# datasets stay out of git (too big for GitHub)
+WaterDataset.zip
+*.zip
+
