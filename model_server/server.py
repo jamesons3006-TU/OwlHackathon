@@ -5,7 +5,7 @@ Then start the backend with:   PWW_MODEL_URL=http://<host>:9000/predict
 
 Settings (environment variables):
   MODEL_TYPE     frcnn (torchvision Faster R-CNN, default) or yolo (Ultralytics)
-  MODEL_WEIGHTS  checkpoint path, default garbage.pth
+  MODEL_WEIGHTS  checkpoint path, default ../backend/models/model.pth
   FRCNN_ARCH     torchvision builder, default fasterrcnn_resnet50_fpn
   CLASS_NAMES    comma-separated class names without background, default "garbage"
   MODEL_API_KEY  optional shared secret; the backend sends it as a Bearer token

@@ -60,8 +60,8 @@ def test_http_detector_errors_become_model_unavailable():
 
 @pytest.mark.parametrize("save_as", ["state_dict", "checkpoint", "whole_model"])
 def test_faster_rcnn_checkpoint_formats(tmp_path, save_as):
-    import torch
-    import torchvision
+    torch = pytest.importorskip("torch")
+    torchvision = pytest.importorskip("torchvision")
     from app import config
     from app.detector import FasterRCNNDetector
 
@@ -86,7 +86,7 @@ def test_faster_rcnn_checkpoint_formats(tmp_path, save_as):
 
 
 def test_faster_rcnn_rejects_other_checkpoints(tmp_path):
-    import torch
+    torch = pytest.importorskip("torch")
     from app.detector import FasterRCNNDetector
 
     path = tmp_path / "not_frcnn.pth"

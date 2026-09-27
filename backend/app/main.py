@@ -769,9 +769,9 @@ def create_app(
         request: Request,
 
         # Frontend sends the desired grid size in meters.
-        cell_m: float = Query(
+        cell_m: int = Query(
             500,
-            gt=0,
+            ge=50,
             le=10000,
         ),
 
@@ -955,22 +955,16 @@ def create_app(
 
         poller = request.app.state.river
 
+        # Left out when river polling is off.
         if poller is not None:
             result["river_sync"] = {
-                "enabled": True,
-                "interval_minutes": (
-                    config.RIVER_SYNC_MINUTES
-                ),
+                "every_minutes": poller.minutes,
                 "last_result": (
                     poller.last_result
                 ),
                 "last_error": (
                     poller.last_error
                 ),
-            }
-        else:
-            result["river_sync"] = {
-                "enabled": False,
             }
 
         return result
@@ -1177,49 +1171,58 @@ def create_app(
 # ----------------------------------------------------------------------
 
 
+CSV_FIELDS = [
+    "id",
+    "created_at",
+    "captured_at",
+    "waterway",
+    "location_name",
+    "latitude",
+    "longitude",
+    "location_source",
+    "location_confirmed",
+    "in_philadelphia",
+    "score",
+    "severity",
+    "item_count",
+    "coverage_pct",
+    "status",
+    "status_updated_at",
+    "authority_level",
+    "primary_authority",
+    "hazard_suspected",
+    "model_name",
+    "model_is_stand_in",
+    "image_width",
+    "image_height",
+    "reporter",
+    "notes",
+]
+
+
 def _to_csv(
     reports: list[dict],
 ) -> str:
 
     output = io.StringIO()
 
-    if reports:
+    writer = csv.DictWriter(
+        output,
+        fieldnames=CSV_FIELDS,
+        extrasaction="ignore",
+    )
 
-        fieldnames = [
-            "id",
-            "created_at",
-            "captured_at",
-            "waterway",
-            "location_name",
-            "latitude",
-            "longitude",
-            "location_source",
-            "location_confirmed",
-            "in_philadelphia",
-            "notes",
-            "reporter",
-            "hazard_suspected",
-            "model_name",
-            "model_is_stand_in",
-            "score",
-            "severity",
-            "item_count",
-            "coverage_pct",
-            "authority_level",
-            "status",
-            "status_updated_at",
-        ]
+    writer.writeheader()
 
-        writer = csv.DictWriter(
-            output,
-            fieldnames=fieldnames,
-            extrasaction="ignore",
+    for report in reports:
+        primary = report["recommendation"].get("primary_authority")
+
+        writer.writerow(
+            {
+                **report,
+                "primary_authority": primary["name"] if primary else "",
+            }
         )
-
-        writer.writeheader()
-
-        for row in reports:
-            writer.writerow(row)
 
     return output.getvalue()
 
