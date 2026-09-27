@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from psycopg.rows import dict_row
-from psycopg_pool import ConnectionPool
+from psycopg_pool import ConnectionPool, PoolTimeout
 
 from .storage import OPEN_STATUSES, STATUSES, ImageStore, merge_days, now_iso
 from .scoring import severity_for
@@ -187,7 +187,15 @@ class TigerStore(ImageStore):
         super().__init__(data_dir)
         self.pool = ConnectionPool(database_url, min_size=1, max_size=8, open=True,
                                    kwargs={"row_factory": dict_row, "autocommit": True})
-        self._setup()
+        try:
+            try:
+                self.pool.wait(timeout=20)
+            except PoolTimeout:
+                raise RuntimeError(_connect_hint(database_url)) from None
+            self._setup()
+        except BaseException:
+            self.pool.close()
+            raise
 
     def close(self) -> None:
         self.pool.close()
@@ -498,6 +506,19 @@ class TigerStore(ImageStore):
             "continuous_aggregates": aggregates,
             "trend_query_ms": {"continuous_aggregate": round(aggregate_ms, 2), "raw_hypertable": round(raw_ms, 2)},
         }
+
+
+def _connect_hint(database_url: str) -> str:
+    """Why the first connection failed, in words a person can act on (never echoes the password)."""
+    import psycopg
+    try:
+        psycopg.connect(database_url, connect_timeout=10).close()
+        reason = "the connection timed out"
+    except Exception as e:
+        reason = str(e).strip().splitlines()[0] if str(e).strip() else type(e).__name__
+    return (f"Could not connect to Tiger Data: {reason}. Check PWW_DATABASE_URL (copy the whole "
+            "connection string, keep it in quotes, and use the new password if you reset it) and that "
+            "the service is running in the Tiger Cloud console.")
 
 
 def refresh_aggregate(conn, view: str, attempts: int = 100) -> None:
