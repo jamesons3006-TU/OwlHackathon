@@ -32,22 +32,22 @@ The backend never calls a model directly. It goes through a detector chosen by `
 
 | Option | Settings | When to use |
 |---|---|---|
-| **A. Faster R-CNN checkpoint** | Put `garbage.pth` in `backend/models/`. Set `PWW_FRCNN_ARCH` if not `fasterrcnn_resnet50_fpn`, and `PWW_CLASS_NAMES` if not just `garbage` | Model runs on the same machine as the API |
+| **A. Faster R-CNN checkpoint** | Put `model.pth` in `backend/models/`. Set `PWW_FRCNN_ARCH` if not `fasterrcnn_resnet50_fpn`, and `PWW_CLASS_NAMES` if not just `garbage` | Model runs on the same machine as the API |
 | **B. Model as its own API** | `PWW_MODEL_URL=http://host:9000/predict` (+ `PWW_MODEL_API_KEY`) | Model runs on a GPU machine or Colab |
 | **C. YOLO weights** | `garbage.pt` / `.onnx` in `backend/models/` | Ultralytics model |
 | **D. Python class** | `PWW_DETECTOR=my_module:MyDetector` | Anything else; class needs `name`, `is_stand_in` and `detect(pil_image)` |
 | **E. Mock** | `PWW_DETECTOR=mock` | Front-end work without any model |
 
-With the default `PWW_DETECTOR=auto`, the backend picks the first that exists: `PWW_MODEL_URL`, then `models/garbage.pth`, then `models/garbage.pt`, then the general-purpose `yolo11n.pt` stand-in.
+With the default `PWW_DETECTOR=auto`, the backend picks the first that exists: `PWW_MODEL_URL`, then `models/model.pth`, then `models/garbage.pt`, then the general-purpose `yolo11n.pt` stand-in.
 
 ### Faster R-CNN checkpoints (option A)
 
 Any of the usual ways of saving from a torchvision training script works:
 
 ```python
-torch.save(model.state_dict(), "garbage.pth")                                   # plain state_dict
-torch.save({"model_state_dict": model.state_dict(), "epoch": e, ...}, "garbage.pth")  # training checkpoint
-torch.save(model, "garbage.pth")                                                # whole model
+torch.save(model.state_dict(), "model.pth")                                     # plain state_dict
+torch.save({"model_state_dict": model.state_dict(), "epoch": e, ...}, "model.pth")  # training checkpoint
+torch.save(model, "model.pth")                                                  # whole model
 ```
 
 The number of classes is read from the checkpoint. Tell the backend two things:

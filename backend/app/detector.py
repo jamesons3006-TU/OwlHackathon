@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import importlib.util
 import io
 import random
 from dataclasses import dataclass, asdict
@@ -203,10 +204,9 @@ class FasterRCNNDetector:
             scores,
             labels,
         ):
-            # Our trained model:
-            # 0 = background
-            # 1 = garbage
-            if int(label) != 1:
+            # 0 is background. With the default PWW_CLASS_NAMES,
+            # 1 is "garbage", as in our trained model.
+            if int(label) == 0:
                 continue
 
             if score < config.CONFIDENCE_THRESHOLD:
@@ -234,7 +234,7 @@ class FasterRCNNDetector:
 
             detections.append(
                 Detection(
-                    label="garbage",
+                    label=self._label(int(label)),
                     confidence=float(score),
                     x=x1,
                     y=y1,
@@ -380,6 +380,13 @@ def load_detector() -> Detector:
         elif config.GARBAGE_MODEL_PATH.exists():
             choice = "yolo"
         else:
+            if importlib.util.find_spec("ultralytics") is None:
+                raise RuntimeError(
+                    "No detection model found. Do one of these, then start again:\n"
+                    "  - PWW_DETECTOR=mock                  fake detections, for front-end and database work\n"
+                    "  - PWW_MODEL_URL=http://<host>:9000/predict   a model running on another machine\n"
+                    f"  - put model.pth in {config.MODELS_DIR} and install requirements-models.txt + torch"
+                )
             return YoloDetector(config.FALLBACK_MODEL, is_stand_in=True)
 
     if choice == "http":
