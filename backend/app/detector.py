@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import importlib.util
 import io
 import random
 from dataclasses import dataclass, asdict
@@ -274,6 +275,13 @@ def load_detector() -> Detector:
         elif config.GARBAGE_MODEL_PATH.exists():
             choice = "yolo"
         else:
+            if importlib.util.find_spec("ultralytics") is None:
+                raise RuntimeError(
+                    "No detection model found. Do one of these, then start again:\n"
+                    "  - PWW_DETECTOR=mock                  fake detections, for front-end and database work\n"
+                    "  - PWW_MODEL_URL=http://<host>:9000/predict   a model running on another machine\n"
+                    f"  - put garbage.pth in {config.MODELS_DIR} and install requirements-models.txt + torch"
+                )
             return YoloDetector(config.FALLBACK_MODEL, is_stand_in=True)
 
     if choice == "http":
