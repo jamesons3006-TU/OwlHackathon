@@ -20,10 +20,24 @@ Use PowerShell from the repository root, or `cd` into `backend` first. The key i
 cd .\backend
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+# Only to run a model on this machine:
+.\.venv\Scripts\python.exe -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+.\.venv\Scripts\python.exe -m pip install -r requirements-models.txt
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
+
+**macOS / Linux:**
+
+```bash
+cd backend
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+export PWW_DETECTOR=mock   # or PWW_MODEL_URL=http://<model machine>:9000/predict
+.venv/bin/python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+PyTorch has no builds for Intel Macs, so run the model on another machine there (see "Model as its own API" below).
 
 If you are already inside `backend`, omit the first `cd` and keep the same `.venv\Scripts\python.exe -m ...` commands.
 

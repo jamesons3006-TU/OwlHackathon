@@ -1,0 +1,3 @@
+# Only needed to run a detection model on this machine (Faster R-CNN .pth or YOLO .pt).
+# Install torch first (see README). PyTorch has no builds for Intel Macs; use PWW_MODEL_URL there instead.
+ultralytics>=8.3
