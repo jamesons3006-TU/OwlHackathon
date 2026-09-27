@@ -14,91 +14,17 @@ photo ──► detector (fine-tuned Faster R-CNN) ──► boxes ──► 0�
 
 ## Run the backend
 
-Use PowerShell from the repository root, or `cd` into `backend` first. The key is that the virtual environment and app module must be resolved from the backend folder.
-
 ```powershell
-cd .\backend
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-# Only to run a model on this machine:
-.\.venv\Scripts\python.exe -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-.\.venv\Scripts\python.exe -m pip install -r requirements-models.txt
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-**macOS / Linux:**
-
-```bash
 cd backend
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-export PWW_DETECTOR=mock   # or PWW_MODEL_URL=http://<model machine>:9000/predict
-.venv/bin/python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+python -m venv .venv
+.\.venv\Scripts\pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+.\.venv\Scripts\pip install -r requirements.txt
+.\.venv\Scripts\uvicorn app.main:app --reload
 ```
 
-PyTorch has no builds for Intel Macs, so run the model on another machine there (see "Model as its own API" below).
+Interactive API docs: http://127.0.0.1:8000/docs. For front-end work without a model, set `$env:PWW_DETECTOR="mock"` first.
 
-If you are already inside `backend`, omit the first `cd` and keep the same `.venv\Scripts\python.exe -m ...` commands.
-
-Open the dashboard at http://127.0.0.1:8000/ (the backend serves [`frontend/index.html`](frontend/index.html)). Interactive API docs: http://127.0.0.1:8000/docs. For front-end work without a model, set `$env:PWW_DETECTOR="mock"` first.
-
-Run the tests with `.\.venv\Scripts\python.exe -m pytest` from the `backend` directory.
-
-## Front end
-
-[`frontend/index.html`](frontend/index.html) is the Riverwatch dashboard: one HTML file with no build step (Leaflet and the font load from CDNs).
-
-- **Overview:** stats, bubble map / heat map, priority hotspots and the report table.
-- **Report a sighting:** upload a photo, see the boxed detections, score and who to contact, then drop a pin on the map to confirm the location. GPS in the photo places the pin automatically.
-- **Reports / Cleanups:** filter by severity and status, open a report, move it through the cleanup workflow, export CSV or the research ZIP.
-- **My impact:** your reports compared with the community. The "Reporting as" name is sent as `reporter` on uploads.
-
-It calls the API on the same origin when the backend serves it. Opened straight from disk it uses `http://127.0.0.1:8000`; anywhere else, add `?api=http://host:port` to the URL. Set `PWW_FRONTEND_DIR` to serve it from another folder.
-
-## Tiger Data (TimescaleDB)
-
-Set `PWW_DATABASE_URL` and the backend stores everything in [Tiger Data](https://www.tigerdata.com/) instead of the local SQLite file. Photos stay on disk either way.
-
-```powershell
-$env:PWW_DATABASE_URL="postgres://tsdbadmin:<password>@<service>.tsdb.cloud.timescale.com:<port>/tsdb?sslmode=require"
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-The schema is created on startup ([`backend/app/tigerstore.py`](backend/app/tigerstore.py)):
-
-| Feature | Where it's used |
-|---|---|
-| **Hypertables** | `reports` (by `created_at`), `status_history` (by `changed_at`), `river_readings` (by `time`) |
-| **Relational tables alongside them** | `detections` (boxes per report), `river_sites` (joined to readings with plain SQL) |
-| **Continuous aggregates** (real-time) | `litter_daily`, `cleanups_daily` feed the "Litter over time" chart; `river_hourly` → `river_daily` is a hierarchical aggregate (an aggregate of an aggregate) |
-| **Compression policies** | `river_readings` after 7 days, `status_history` after 30, `reports` after 90. Old reports can still be updated |
-| **Live metric stream** | USGS river gauges (flow, height, water temperature, turbidity, oxygen, conductance) are polled every 15 minutes with bulk `COPY` inserts ([`backend/app/river.py`](backend/app/river.py)) |
-
-The dashboard's **Litter over time** panel stacks reports and cleanups, average score, and river flow on one time axis, so you can see whether litter follows storms. **Under the hood** shows row counts, chunks, compression ratios and the trend query timed against the aggregate and against the raw rows (`GET /api/db`).
-
-New endpoints: `GET /api/trends?days=90&waterway=`, `GET /api/river/latest`, `GET /api/river/daily?parameter=discharge_cfs&days=90`, `GET /api/db`.
-
-**Commands** (from `backend`, with `PWW_DATABASE_URL` set):
-
-```powershell
-.\.venv\Scripts\python.exe -m app.river --days 30          # backfill 30 days of river readings
-.\.venv\Scripts\python.exe -m app.seed                     # 400 synthetic demo reports over 120 days
-.\.venv\Scripts\python.exe -m app.seed --reports 200000    # load test
-.\.venv\Scripts\python.exe -m app.seed --clear             # remove every synthetic report
-```
-
-Seeded reports are **synthetic**: marked `model_name = "demo-seed"`, with a note and a placeholder image. Don't present them as real sightings.
-
-**Measured locally** (TimescaleDB 2.30 in Docker, 200,000 synthetic reports over a year):
-- Loaded at about 3,000 reports/s.
-- `reports` compressed 11.6× (25.5 MB → 2.2 MB) and `status_history` 5.6× (124 MB → 22 MB).
-- The 90-day trend query took 4.5 ms from the continuous aggregate vs 17 ms scanning raw rows.
-- `/api/trends` for a year answered in about 70 ms end to end.
-
-Settings: `PWW_RIVER_SYNC_MINUTES` (default 15; 0 = off), `PWW_RIVER_BACKFILL_DAYS` (30), `PWW_RIVER_SITES` (comma-separated USGS site numbers), `PWW_USGS_IV_URL`.
-
-Run the tests against TimescaleDB too: start one (`docker run -d -e POSTGRES_PASSWORD=pw -p 5432:5432 timescale/timescaledb:latest-pg17`), then set `PWW_TEST_DATABASE_URL=postgres://postgres:pw@127.0.0.1:5432/postgres` and run pytest. Each test gets its own database.
+Run the tests with `.\.venv\Scripts\pytest`.
 
 ## Plugging in the model
 
@@ -170,11 +96,11 @@ Every report stores `model_name` and `model_is_stand_in`, so researchers can tel
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/api/reports` | Upload a photo (multipart). Returns detections, score, severity and recommendations |
-| `PATCH` | `/api/reports/{id}/location` | Save the location the user confirmed on the map. JSON `{"latitude", "longitude", "location_name"}` (name optional) |
+| `PATCH` | `/api/reports/{id}/location` | Save the location the user confirmed on the map. JSON `{"latitude", "longitude"}` |
 | `GET` | `/api/reports/{id}` | One report, including its status history |
 | `GET` | `/api/reports/{id}/image?annotated=true` | Original photo, or the copy with detection boxes drawn |
 
-`POST /api/reports` form fields: `image` (required), `waterway`, `location_name`, `latitude`, `longitude`, `notes`, `reporter`, `hazard_suspected`. If latitude/longitude are omitted, GPS is read from the photo's EXIF data when present, so the map can open on that spot. `location_source` records where the position came from (`reporter`, `exif` or `map`), and `location_confirmed` becomes `true` once the user confirms it.
+`POST /api/reports` form fields: `image` (required), `waterway`, `latitude`, `longitude`, `notes`, `reporter`, `hazard_suspected`. If latitude/longitude are omitted, GPS is read from the photo's EXIF data when present, so the map can open on that spot. `location_source` records where the position came from (`reporter`, `exif` or `map`), and `location_confirmed` becomes `true` once the user confirms it.
 
 ### Maps
 
@@ -222,9 +148,9 @@ The score is experimental: the weights are a starting point to tune against real
 
 ## Storage
 
-Without `PWW_DATABASE_URL` (see Tiger Data above), everything lives in `backend/data/` (git-ignored): `reports.db` (SQLite), `images/YYYY/MM/<id>.jpg` and `annotated/YYYY/MM/<id>.jpg`. Set `PWW_DATA_DIR` to store it elsewhere. Databases from earlier versions are upgraded automatically on startup.
+Everything lives in `backend/data/` (git-ignored): `reports.db` (SQLite), `images/YYYY/MM/<id>.jpg` and `annotated/YYYY/MM/<id>.jpg`. Set `PWW_DATA_DIR` to store it elsewhere. Databases from earlier versions are upgraded automatically on startup.
 
-Other settings: `PWW_DETECTOR`, `PWW_FRCNN_MODEL`, `PWW_FRCNN_ARCH`, `PWW_CLASS_NAMES`, `PWW_MODEL_URL`, `PWW_MODEL_API_KEY`, `PWW_MODEL_TIMEOUT` (default 60 s), `PWW_MODEL`, `PWW_CONFIDENCE` (default 0.25), `PWW_MAX_UPLOAD_MB` (default 20), `PWW_CORS_ORIGINS` (default `*`), `PWW_FRONTEND_DIR` (default `frontend/`).
+Other settings: `PWW_DETECTOR`, `PWW_FRCNN_MODEL`, `PWW_FRCNN_ARCH`, `PWW_CLASS_NAMES`, `PWW_MODEL_URL`, `PWW_MODEL_API_KEY`, `PWW_MODEL_TIMEOUT` (default 60 s), `PWW_MODEL`, `PWW_CONFIDENCE` (default 0.25), `PWW_MAX_UPLOAD_MB` (default 20), `PWW_CORS_ORIGINS` (default `*`).
 
 ## Training notebook
 

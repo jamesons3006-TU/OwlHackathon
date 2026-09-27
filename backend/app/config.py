@@ -6,6 +6,7 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 DATA_DIR = Path(os.getenv("PWW_DATA_DIR", BACKEND_DIR / "data"))
 FRONTEND_DIR = Path(os.getenv("PWW_FRONTEND_DIR", BACKEND_DIR.parent / "frontend"))
+
 # Tiger Data (TimescaleDB / PostgreSQL) connection string, e.g. from Tiger Cloud:
 #   postgres://tsdbadmin:<password>@<service>.tsdb.cloud.timescale.com:<port>/tsdb?sslmode=require
 # Empty = local SQLite file in DATA_DIR (no time-series features).
@@ -14,8 +15,15 @@ DATABASE_URL = os.getenv("PWW_DATABASE_URL", "")
 # USGS river gauges, polled into Tiger Data (see app/river.py). 0 turns polling off.
 RIVER_SYNC_MINUTES = float(os.getenv("PWW_RIVER_SYNC_MINUTES", "15"))
 RIVER_BACKFILL_DAYS = int(os.getenv("PWW_RIVER_BACKFILL_DAYS", "30"))
-RIVER_SITES = [s.strip() for s in os.getenv("PWW_RIVER_SITES", "").split(",") if s.strip()]
-USGS_IV_URL = os.getenv("PWW_USGS_IV_URL", "https://waterservices.usgs.gov/nwis/iv/")
+RIVER_SITES = [
+    s.strip()
+    for s in os.getenv("PWW_RIVER_SITES", "").split(",")
+    if s.strip()
+]
+USGS_IV_URL = os.getenv(
+    "PWW_USGS_IV_URL",
+    "https://waterservices.usgs.gov/nwis/iv/"
+)
 
 MODELS_DIR = Path(os.getenv("PWW_MODELS_DIR", BACKEND_DIR / "models"))
 
@@ -28,16 +36,30 @@ MODELS_DIR = Path(os.getenv("PWW_MODELS_DIR", BACKEND_DIR / "models"))
 #   package.module:ClassName - any Python class with a detect(image) method
 DETECTOR = os.getenv("PWW_DETECTOR", "auto")
 
-# Faster R-CNN checkpoint: a state_dict, a {"model_state_dict": ...} training checkpoint, or a whole saved model.
-FRCNN_MODEL_PATH = Path(os.getenv("PWW_FRCNN_MODEL", MODELS_DIR / "garbage.pth"))
-# torchvision builder used to rebuild the network before loading a state_dict:
-# fasterrcnn_resnet50_fpn | fasterrcnn_resnet50_fpn_v2 | fasterrcnn_mobilenet_v3_large_fpn | fasterrcnn_mobilenet_v3_large_320_fpn
-FRCNN_ARCH = os.getenv("PWW_FRCNN_ARCH", "fasterrcnn_resnet50_fpn")
-# Class names in training order, WITHOUT the background class (index 0 in torchvision).
-CLASS_NAMES = [c.strip() for c in os.getenv("PWW_CLASS_NAMES", "garbage").split(",") if c.strip()]
+# Faster R-CNN checkpoint.
+# IMPORTANT: our trained model is backend/models/model.pth
+FRCNN_MODEL_PATH = Path(
+    os.getenv("PWW_FRCNN_MODEL", MODELS_DIR / "model.pth")
+)
 
-# YOLO weights. If no model is found at all, the API falls back to a general-purpose pretrained model.
-GARBAGE_MODEL_PATH = Path(os.getenv("PWW_MODEL", MODELS_DIR / "garbage.pt"))
+# torchvision builder used to rebuild the network before loading a state_dict:
+# fasterrcnn_resnet50_fpn | fasterrcnn_resnet50_fpn_v2 |
+# fasterrcnn_mobilenet_v3_large_fpn |
+# fasterrcnn_mobilenet_v3_large_320_fpn
+FRCNN_ARCH = os.getenv("PWW_FRCNN_ARCH", "fasterrcnn_resnet50_fpn")
+
+# Class names in training order, WITHOUT the background class.
+CLASS_NAMES = [
+    c.strip()
+    for c in os.getenv("PWW_CLASS_NAMES", "garbage").split(",")
+    if c.strip()
+]
+
+# YOLO weights. If no model is found at all, the API falls back
+# to a general-purpose pretrained model.
+GARBAGE_MODEL_PATH = Path(
+    os.getenv("PWW_MODEL", MODELS_DIR / "garbage.pt")
+)
 FALLBACK_MODEL = os.getenv("PWW_FALLBACK_MODEL", "yolo11n.pt")
 
 # Remote model service
@@ -49,8 +71,16 @@ CONFIDENCE_THRESHOLD = float(os.getenv("PWW_CONFIDENCE", "0.25"))
 MAX_UPLOAD_BYTES = int(os.getenv("PWW_MAX_UPLOAD_MB", "20")) * 1024 * 1024
 
 # Comma-separated list of front-end origins allowed to call the API.
-CORS_ORIGINS = [o.strip() for o in os.getenv("PWW_CORS_ORIGINS", "*").split(",") if o.strip()]
+CORS_ORIGINS = [
+    o.strip()
+    for o in os.getenv("PWW_CORS_ORIGINS", "*").split(",")
+    if o.strip()
+]
 
-# Rough bounding box around the City of Philadelphia, used to flag
-# reports whose coordinates fall outside the city.
-PHILLY_BOUNDS = {"lat_min": 39.86, "lat_max": 40.14, "lon_min": -75.29, "lon_max": -74.95}
+# Rough bounding box around the City of Philadelphia.
+PHILLY_BOUNDS = {
+    "lat_min": 39.86,
+    "lat_max": 40.14,
+    "lon_min": -75.29,
+    "lon_max": -74.95,
+}

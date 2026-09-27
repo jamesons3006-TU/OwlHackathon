@@ -136,27 +136,3 @@ def test_old_database_is_migrated(tmp_path):
     store = Store(tmp_path)
     row = store.db.execute("SELECT status, location_confirmed FROM reports WHERE id = 'old'").fetchone()
     assert tuple(row) == ("reported", 0)
-
-
-def test_location_name_on_upload_and_confirm(client):
-    r = client.post("/api/reports", files={"image": ("p.jpg", _jpeg(2), "image/jpeg")},
-                    data={"location_name": "Schuylkill Banks"}).json()
-    assert r["location_name"] == "Schuylkill Banks"
-    # Confirming without a name keeps the old one; a new name replaces it.
-    kept = client.patch(f"/api/reports/{r['id']}/location", json={"latitude": 39.95, "longitude": -75.18}).json()
-    assert kept["location_name"] == "Schuylkill Banks"
-    renamed = client.patch(f"/api/reports/{r['id']}/location",
-                           json={"latitude": 39.95, "longitude": -75.18, "location_name": "Bartram's Garden"}).json()
-    assert renamed["location_name"] == "Bartram's Garden"
-    assert "location_name" in client.get("/api/export?format=csv").text.splitlines()[0]
-
-
-def test_serves_front_end(client, tmp_path, monkeypatch):
-    from app import config
-    monkeypatch.setattr(config, "FRONTEND_DIR", tmp_path / "missing")
-    assert client.get("/").status_code == 404
-    (tmp_path / "site").mkdir()
-    (tmp_path / "site" / "index.html").write_text("<!doctype html><title>t</title>")
-    monkeypatch.setattr(config, "FRONTEND_DIR", tmp_path / "site")
-    r = client.get("/")
-    assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")

@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import hashlib
 import importlib
-import importlib.util
 import io
 import random
 from dataclasses import dataclass, asdict
@@ -86,68 +85,174 @@ class YoloDetector:
 # ---- torchvision Faster R-CNN ------------------------------------------------
 
 class FasterRCNNDetector:
-    """Fine-tuned torchvision Faster R-CNN.
+    """Fine-tuned torchvision Faster R-CNN garbage detector."""
 
-    Accepts the usual ways a training script saves weights:
-      torch.save(model.state_dict(), "garbage.pth")
-      torch.save({"model_state_dict": model.state_dict(), ...}, "garbage.pth")   (also "state_dict" / "model")
-      torch.save(model, "garbage.pth")                                         (whole model)
-    The class count is read from the checkpoint, so only the architecture and class names need configuring.
-    """
-
-    def __init__(self, path: str | Path, arch: str = "fasterrcnn_resnet50_fpn", class_names: list[str] | None = None):
+    def __init__(
+        self,
+        path: str | Path,
+        arch: str = "fasterrcnn_resnet50_fpn",
+        class_names: list[str] | None = None,
+    ):
         import torch
         import torchvision
 
         self.torch = torch
         self.name = Path(path).name
         self.is_stand_in = False
-        try:
-            ckpt = torch.load(path, map_location="cpu", weights_only=True)
-        except Exception:
-            # Whole pickled models need full unpickling. Only load checkpoints from your own team.
-            ckpt = torch.load(path, map_location="cpu", weights_only=False)
 
+        # Use GPU when available, otherwise CPU.
+        self.device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )
+
+        try:
+            ckpt = torch.load(
+                path,
+                map_location="cpu",
+                weights_only=True,
+            )
+        except Exception:
+            # Only use weights_only=False for checkpoints you trust.
+            ckpt = torch.load(
+                path,
+                map_location="cpu",
+                weights_only=False,
+            )
+
+        # Checkpoint may be an entire saved PyTorch model.
         if isinstance(ckpt, torch.nn.Module):
             model = ckpt
+
         else:
             state = ckpt
+
+            # Support common training checkpoint formats.
             for key in ("model_state_dict", "state_dict", "model"):
-                if isinstance(ckpt, dict) and isinstance(ckpt.get(key), dict):
+                if (
+                    isinstance(ckpt, dict)
+                    and isinstance(ckpt.get(key), dict)
+                ):
                     state = ckpt[key]
                     break
-            state = {k.removeprefix("module."): v for k, v in state.items()}  # saved from DataParallel
+
+            # Handle checkpoints saved with DataParallel.
+            state = {
+                k.removeprefix("module."): v
+                for k, v in state.items()
+            }
+
             try:
-                num_classes = state["roi_heads.box_predictor.cls_score.weight"].shape[0]
+                num_classes = (
+                    state[
+                        "roi_heads.box_predictor.cls_score.weight"
+                    ].shape[0]
+                )
             except KeyError as e:
-                raise RuntimeError(f"{path} doesn't look like a Faster R-CNN checkpoint") from e
-            builder = getattr(torchvision.models.detection, arch)
-            model = builder(weights=None, weights_backbone=None, num_classes=num_classes)
+                raise RuntimeError(
+                    f"{path} doesn't look like a Faster R-CNN checkpoint"
+                ) from e
+
+            builder = getattr(
+                torchvision.models.detection,
+                arch,
+            )
+
+            model = builder(
+                weights=None,
+                weights_backbone=None,
+                num_classes=num_classes,
+            )
+
             model.load_state_dict(state)
 
-        model.eval()
-        self.model = model
-        # index 0 is background in torchvision detection models
-        self.class_names = ["__background__"] + list(class_names or ["garbage"])
+        self.model = model.to(self.device)
+        self.model.eval()
+
+        # torchvision uses class 0 for background.
+        self.class_names = (
+            ["__background__"]
+            + list(class_names or ["garbage"])
+        )
 
     def _label(self, idx: int) -> str:
-        return self.class_names[idx] if idx < len(self.class_names) else f"class_{idx}"
+        if idx < len(self.class_names):
+            return self.class_names[idx]
 
-    def detect(self, image: Image.Image) -> list[Detection]:
+        return f"class_{idx}"
+
+    def detect(
+        self,
+        image: Image.Image,
+    ) -> list[Detection]:
+
         from torchvision.transforms.functional import to_tensor
 
+        tensor = to_tensor(image).to(self.device)
+
         with self.torch.inference_mode():
-            out = self.model([to_tensor(image)])[0]
+            prediction = self.model([tensor])[0]
+
+        boxes = prediction["boxes"].cpu().tolist()
+        scores = prediction["scores"].cpu().tolist()
+        labels = prediction["labels"].cpu().tolist()
+
         detections = []
-        for (x1, y1, x2, y2), score, label in zip(out["boxes"].tolist(), out["scores"].tolist(), out["labels"].tolist()):
-            if score >= config.CONFIDENCE_THRESHOLD:
-                detections.append(Detection(self._label(int(label)), float(score), x1, y1, x2 - x1, y2 - y1))
+
+        for box, score, label in zip(
+            boxes,
+            scores,
+            labels,
+        ):
+            # Our trained model:
+            # 0 = background
+            # 1 = garbage
+            if int(label) != 1:
+                continue
+
+            if score < config.CONFIDENCE_THRESHOLD:
+                continue
+
+            x1, y1, x2, y2 = box
+
+            # Keep coordinates inside the uploaded image.
+            x1 = max(0.0, x1)
+            y1 = max(0.0, y1)
+
+            x2 = min(
+                float(image.width),
+                x2,
+            )
+
+            y2 = min(
+                float(image.height),
+                y2,
+            )
+
+            # Ignore invalid boxes.
+            if x2 <= x1 or y2 <= y1:
+                continue
+
+            detections.append(
+                Detection(
+                    label="garbage",
+                    confidence=float(score),
+                    x=x1,
+                    y=y1,
+                    w=x2 - x1,
+                    h=y2 - y1,
+                )
+            )
+
         return detections
 
     def health(self) -> dict:
-        return {"type": "frcnn", "reachable": True, "classes": self.class_names[1:]}
-
-
+        return {
+            "type": "frcnn",
+            "reachable": True,
+            "model": self.name,
+            "device": str(self.device),
+            "classes": self.class_names[1:],
+        }
 # ---- remote model service -----------------------------------------------------
 
 class HttpDetector:
@@ -275,13 +380,6 @@ def load_detector() -> Detector:
         elif config.GARBAGE_MODEL_PATH.exists():
             choice = "yolo"
         else:
-            if importlib.util.find_spec("ultralytics") is None:
-                raise RuntimeError(
-                    "No detection model found. Do one of these, then start again:\n"
-                    "  - PWW_DETECTOR=mock                  fake detections, for front-end and database work\n"
-                    "  - PWW_MODEL_URL=http://<host>:9000/predict   a model running on another machine\n"
-                    f"  - put garbage.pth in {config.MODELS_DIR} and install requirements-models.txt + torch"
-                )
             return YoloDetector(config.FALLBACK_MODEL, is_stand_in=True)
 
     if choice == "http":

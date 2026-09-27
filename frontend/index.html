@@ -1118,121 +1118,6 @@
     }
 
     /* =========================
-       TRENDS AND DATABASE PANELS
-       ========================= */
-    .trendpanel,
-    .dbpanel {
-      margin-top: 22px;
-    }
-
-    .rivernow {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      padding: 0 20px 14px;
-    }
-
-    .gauge {
-      flex: 1 1 220px;
-      padding: 11px 13px;
-      border: 1px solid var(--border);
-      border-radius: 9px;
-      background: #072835;
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .gauge strong {
-      display: block;
-      margin-bottom: 3px;
-      color: var(--text);
-      font-size: 13px;
-    }
-
-    .gauge b {
-      color: var(--text);
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .trendchart svg {
-      display: block;
-      width: 100%;
-      overflow: visible;
-      font-family: var(--font);
-    }
-
-    .trendchart .rowtitle {
-      fill: #c7e2e8;
-      font-size: 12px;
-      font-weight: 600;
-    }
-
-    .trendchart .axis {
-      fill: var(--muted);
-      font-size: 10px;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .trendchart .grid {
-      stroke: #163c4c;
-      stroke-width: 1;
-    }
-
-    .trendchart .base {
-      stroke: #1e4a5c;
-      stroke-width: 1;
-    }
-
-    .trendchart .hit {
-      fill: transparent;
-    }
-
-    .trendchart .hit:hover {
-      fill: #ffffff0f;
-    }
-
-    .trendkeys {
-      display: flex;
-      gap: 14px;
-      margin: 0 0 6px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .trendfoot {
-      padding: 0 20px 16px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .dbgrid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-      gap: 12px;
-      padding: 0 20px 20px;
-    }
-
-    .dbgrid .stat {
-      padding: 14px 16px;
-    }
-
-    .dbgrid .statnumber {
-      font-size: 24px;
-    }
-
-    .dbnote {
-      grid-column: 1 / -1;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.6;
-    }
-
-    .dbnote code {
-      color: #c7e2e8;
-    }
-
-    /* =========================
        MY IMPACT
        ========================= */
     .minetop {
@@ -2007,43 +1892,6 @@
         </aside>
       </section>
 
-      <!-- Trends: Tiger Data continuous aggregates -->
-      <section class="panel trendpanel" id="trendSection" aria-label="Litter over time">
-        <div class="panelbar">
-          <div>
-            <h2>Litter over time</h2>
-            <small id="trendSubtitle">Daily totals</small>
-          </div>
-
-          <div class="tablecontrols">
-            <select id="trendWaterway" aria-label="Waterway for trends">
-              <option value="">All waterways</option>
-            </select>
-            <div class="segmented" aria-label="Time range">
-              <button data-range="30" aria-pressed="false">30 days</button>
-              <button data-range="90" class="active" aria-pressed="true">90 days</button>
-              <button data-range="365" aria-pressed="false">1 year</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="rivernow hidden" id="riverNow"></div>
-        <div class="chartbody" id="trendChart"></div>
-        <div class="trendfoot" id="trendFoot"></div>
-      </section>
-
-      <!-- Database internals, for the curious (and the judges) -->
-      <section class="panel dbpanel" id="dbSection" aria-label="Database">
-        <div class="panelbar">
-          <div>
-            <h2>Under the hood</h2>
-            <small id="dbSubtitle">Checking the database…</small>
-          </div>
-          <svg class="icon" style="color:var(--cyan)"><use href="#activity"/></svg>
-        </div>
-        <div class="dbgrid" id="dbGrid"></div>
-      </section>
-
       <!-- My impact -->
       <section id="mineSection" class="hidden" aria-label="My impact">
         <div class="minetop">
@@ -2422,11 +2270,7 @@
        Opened as a file: the backend on port 8000.
        Anything else: add ?api=http://host:port to the page URL.
        ========================= */
-    const API = (() => {
-      const fromQuery = new URLSearchParams(location.search).get("api");
-      if (fromQuery) return fromQuery.replace(/\/+$/, "");
-      return location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
-    })();
+    const API = "";
 
     async function api(path, options = {}) {
       let response;
@@ -2545,15 +2389,7 @@
        ========================= */
     const USER_KEY = "riverwatch-user";
 
-    // The table, map drill-down and "My impact" use the latest reports; totals come from the server.
-    const MAX_LOADED = 2000;
-
     let reports = [];
-    let totalReports = 0;
-    let summary = null;
-    const extraReports = new Map();
-    let trendDays = 90;
-    let resizeTimer = null;
     let loadError = "";
     let loaded = false;
     let currentView = "overview";
@@ -2596,46 +2432,22 @@
     async function loadReports() {
       const all = [];
 
-      for (let offset = 0; offset < MAX_LOADED; offset += 500) {
+      for (let offset = 0; ; offset += 500) {
         const page = await api(
           `/api/reports?sort=newest&limit=500&offset=${offset}`
         );
         all.push(...page.items);
-        totalReports = page.total;
         if (all.length >= page.total || !page.items.length) break;
       }
 
       reports = all.map(toView);
     }
 
-    // Totals and hotspots from the server, so they stay right however many reports exist.
-    async function loadSummary() {
-      const [stats, priority, hotspots] = await Promise.all([
-        api("/api/stats"),
-        api("/api/reports?severity=high&severity=severe&status=open&limit=1"),
-        api("/api/reports?sort=score&status=open&limit=3")
-      ]);
-
-      summary = {
-        total: stats.reports,
-        avgScore: Math.round(stats.avg_score),
-        priority: priority.total,
-        cleaned: stats.by_status.cleaned ?? 0,
-        hotspots: hotspots.items.map(toView)
-      };
-    }
-
-    function findReport(id) {
-      return reports.find(item => item.id === id) ||
-        summary?.hotspots.find(item => item.id === id) ||
-        extraReports.get(id);
-    }
-
     async function refresh() {
       lastRefresh = Date.now();
 
       try {
-        await Promise.all([loadReports(), loadSummary()]);
+        await loadReports();
         loadError = "";
       } catch (error) {
         loadError = error.message;
@@ -2644,8 +2456,6 @@
 
       loaded = true;
       render();
-      renderTrends();
-      loadDbInfo();
     }
 
     async function checkHealth() {
@@ -2683,10 +2493,11 @@
         // The built-in list matches the backend's.
       }
 
-      const options = waterways.map(name =>
-        `<option>${escapeHTML(name)}</option>`).join("");
-      $("waterway").insertAdjacentHTML("beforeend", options);
-      $("trendWaterway").insertAdjacentHTML("beforeend", options);
+      $("waterway").insertAdjacentHTML(
+        "beforeend",
+        waterways.map(name =>
+          `<option>${escapeHTML(name)}</option>`).join("")
+      );
     }
 
     /* =========================
@@ -2738,12 +2549,26 @@
     function render() {
       const visibleReports = filteredReports();
 
-      const count = n => summary ? n.toLocaleString("en-US") : "–";
-      $("totalStat").textContent = count(summary?.total);
-      $("navCount").textContent = summary ? summary.total.toLocaleString("en-US") : reports.length;
-      $("scoreStat").textContent = count(summary?.avgScore);
-      $("priorityStat").textContent = count(summary?.priority);
-      $("cleanStat").textContent = count(summary?.cleaned);
+      $("totalStat").textContent = loaded ? reports.length : "–";
+      $("navCount").textContent = reports.length;
+
+      $("scoreStat").textContent = reports.length
+        ? Math.round(
+            reports.reduce((sum, report) => sum + report.score, 0) /
+            reports.length
+          )
+        : loaded ? 0 : "–";
+
+      $("priorityStat").textContent = loaded
+        ? reports.filter(report =>
+            PRIORITY.includes(report.severity) &&
+            OPEN_STATUSES.includes(report.status)
+          ).length
+        : "–";
+
+      $("cleanStat").textContent = loaded
+        ? reports.filter(report => report.status === "cleaned").length
+        : "–";
 
       $("reportRows").innerHTML = visibleReports.map(report => {
         const date = new Date(report.created_at).toLocaleDateString(
@@ -2790,7 +2615,10 @@
         visibleReports.length > 0
       );
 
-      const priorities = summary?.hotspots ?? [];
+      const priorities = reports
+        .filter(report => OPEN_STATUSES.includes(report.status))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
 
       $("hotspots").innerHTML = priorities.map((report, index) => `
         <button class="hotspot" data-detail="${escapeHTML(report.id)}">
@@ -2815,12 +2643,6 @@
       `).join("") || `<div class="empty">${
         !loaded ? "Loading…" : reports.length ? "All sites cleaned." : "No reports yet."
       }</div>`;
-
-      if (currentView !== "mine" && reports.length < totalReports) {
-        $("tableSubtitle").textContent =
-          `Showing the latest ${reports.length.toLocaleString("en-US")} of ` +
-          `${totalReports.toLocaleString("en-US")} reports.`;
-      }
 
       renderMap();
       if (currentView === "mine") renderMine();
@@ -3109,11 +2931,10 @@
        Bubbles: /api/map/bubbles (grid cells, sized by report count).
        Heat: /api/map/points (one point per report).
        ========================= */
-    const TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+    const TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+
     const TILE_ATTRIBUTION =
-      '&copy; <a href="https://www.openstreetmap.org/copyright">' +
-      'OpenStreetMap</a> &copy; ' +
-      '<a href="https://carto.com/attributions">CARTO</a>';
+      '&copy; OpenStreetMap contributors';
 
     // Grid cell size follows the zoom so bubbles split apart as you zoom in.
     function cellSize() {
@@ -3424,8 +3245,6 @@
       });
 
       $("mapSection").classList.toggle("hidden", view !== "overview");
-      $("trendSection").classList.toggle("hidden", view !== "overview");
-      $("dbSection").classList.toggle("hidden", view !== "overview");
       $("communityStats").classList.toggle("hidden", view === "mine");
       $("mineSection").classList.toggle("hidden", view !== "mine");
 
@@ -3464,9 +3283,8 @@
 
       render();
 
-      if (view === "overview") {
+      if (map && view === "overview") {
         setTimeout(() => map?.invalidateSize(), 50);
-        if (loaded) renderTrends();
       }
     }
 
@@ -3547,18 +3365,9 @@
         : "Show original photo";
     }
 
-    async function openDetail(id) {
-      let report = findReport(id);
-
-      if (!report) {
-        try {
-          report = toView(await api(`/api/reports/${encodeURIComponent(id)}`));
-          extraReports.set(id, report);
-        } catch (error) {
-          showToast(error.message);
-          return;
-        }
-      }
+    function openDetail(id) {
+      const report = reports.find(item => item.id === id);
+      if (!report) return;
 
       selectedReportId = id;
       showOriginal = false;
@@ -3640,7 +3449,7 @@
     }
 
     $("photoToggle").onclick = () => {
-      const report = findReport(selectedReportId);
+      const report = reports.find(item => item.id === selectedReportId);
       if (!report) return;
       showOriginal = !showOriginal;
       showDetailPhoto(report);
@@ -3650,19 +3459,12 @@
       const view = toView(updated);
       const index = reports.findIndex(item => item.id === view.id);
       if (index >= 0) reports[index] = view;
-      else if (extraReports.has(view.id)) extraReports.set(view.id, view);
-      else {
-        reports.unshift(view);
-        totalReports += 1;
-      }
-      if (summary) {
-        summary.hotspots = summary.hotspots.map(item => item.id === view.id ? view : item);
-      }
+      else reports.unshift(view);
       return view;
     }
 
     $("saveStatus").onclick = async () => {
-      const report = findReport(selectedReportId);
+      const report = reports.find(item => item.id === selectedReportId);
       if (!report) return;
 
       const status = $("detailStatus").value;
@@ -3688,7 +3490,6 @@
         render();
         $("detailDialog").close();
         showToast("Cleanup status updated.");
-        refreshAggregates();
       } catch (error) {
         showToast(`Couldn't update status: ${error.message}`);
       } finally {
@@ -4016,376 +3817,12 @@
         map.setView([saved.latitude, saved.longitude], 14);
       }
 
-      refreshAggregates();
-
       showToast(
         saved.in_philadelphia === false
           ? "Report saved. Note: that spot is outside Philadelphia."
           : "Report saved. Thanks for looking out for our waterways."
       );
     };
-
-    /* =========================
-       TRENDS
-       /api/trends reads Tiger Data continuous aggregates (litter_daily,
-       cleanups_daily); /api/river/* reads USGS gauge readings and the
-       river_hourly -> river_daily aggregates. Separate stacked charts on a
-       shared time axis, never two y-scales on one chart.
-       ========================= */
-    const RIVER_LABELS = {
-      discharge_cfs: ["Flow", "cfs"],
-      gage_height_ft: ["Height", "ft"],
-      water_temp_c: ["Water temp", "°C"],
-      turbidity_fnu: ["Turbidity", "FNU"],
-      dissolved_oxygen_mg_l: ["Dissolved O₂", "mg/L"],
-      specific_conductance_us_cm: ["Conductance", "µS/cm"]
-    };
-
-    let river = { sites: [] };
-
-    async function refreshAggregates() {
-      try {
-        await loadSummary();
-        render();
-      } catch {
-        // The table already shows the change; totals catch up on the next refresh.
-      }
-      renderTrends();
-      loadDbInfo();
-    }
-
-    const fmtNumber = (value, digits = 0) =>
-      Number(value).toLocaleString("en-US", { maximumFractionDigits: digits });
-
-    function renderRiverNow() {
-      const waterway = $("trendWaterway").value;
-      const sites = river.sites.filter(site => !waterway || site.waterway === waterway);
-
-      $("riverNow").classList.toggle("hidden", !sites.length);
-      $("riverNow").innerHTML = sites.map(site => {
-        const readings = Object.entries(site.readings)
-          .filter(([parameter]) => RIVER_LABELS[parameter])
-          .map(([parameter, reading]) => {
-            const [label, unit] = RIVER_LABELS[parameter];
-            return `${label} <b>${fmtNumber(reading.value, 1)}</b> ${unit}`;
-          }).join(" · ");
-        const times = Object.values(site.readings).map(r => Date.parse(r.time));
-        const updated = new Date(Math.max(...times)).toLocaleTimeString("en-US", {
-          hour: "numeric", minute: "2-digit"
-        });
-        return `
-          <div class="gauge">
-            <strong>${escapeHTML(site.name)}</strong>
-            ${readings}<br>
-            <span>USGS gauge ${escapeHTML(site.site_id)} · updated ${updated}</span>
-          </div>`;
-      }).join("");
-    }
-
-    async function renderTrends() {
-      const waterway = $("trendWaterway").value;
-      const query = new URLSearchParams({ days: trendDays });
-      if (waterway) query.set("waterway", waterway);
-
-      let trend, flow = { series: [] };
-      try {
-        [trend, river, flow] = await Promise.all([
-          api(`/api/trends?${query}`),
-          api("/api/river/latest").catch(() => ({ sites: [] })),
-          api(`/api/river/daily?parameter=discharge_cfs&${query}`).catch(() => ({ series: [] }))
-        ]);
-      } catch (error) {
-        $("trendChart").innerHTML = `<div class="empty">${escapeHTML(error.message)}</div>`;
-        return;
-      }
-
-      renderRiverNow();
-
-      $("trendSubtitle").textContent = trend.database === "tigerdata"
-        ? `From Tiger Data continuous aggregates · query ${trend.query_ms} ms`
-        : "Daily totals";
-
-      drawTrends(trend.days, flow.series);
-    }
-
-    function drawTrends(days, flowSeries) {
-      // One bin per day, or per week for long ranges so bars stay readable.
-      const binDays = trendDays > 120 ? 7 : 1;
-      const today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
-      const first = today.getTime() - (trendDays - 1) * DAY;
-      const binCount = Math.ceil(trendDays / binDays);
-      const bins = Array.from({ length: binCount }, (_, i) => ({
-        start: first + i * binDays * DAY,
-        reports: 0, cleaned: 0, scoreSum: 0, flowSum: 0, flowDays: 0
-      }));
-      const binFor = day => {
-        const i = Math.floor((Date.parse(day) - first) / (binDays * DAY));
-        return bins[i];
-      };
-
-      days.forEach(d => {
-        const bin = binFor(d.day);
-        if (!bin) return;
-        bin.reports += d.reports;
-        bin.cleaned += d.cleaned;
-        bin.scoreSum += (d.avg_score ?? 0) * d.reports;
-      });
-
-      // Pick one gauge: the selected waterway's, else the Schuylkill's, else the first with data.
-      const gauges = [...new Set(flowSeries.map(p => p.site_id))];
-      const gauge = gauges.includes("01474500") ? "01474500" : gauges[0];
-      const gaugeName = flowSeries.find(p => p.site_id === gauge)?.name;
-      flowSeries.filter(p => p.site_id === gauge).forEach(p => {
-        const bin = binFor(p.day);
-        if (!bin || p.mean == null) return;
-        bin.flowSum += p.mean;
-        bin.flowDays += 1;
-      });
-
-      const hasReports = bins.some(b => b.reports || b.cleaned);
-      const hasFlow = bins.some(b => b.flowDays);
-
-      if (!hasReports && !hasFlow) {
-        $("trendChart").innerHTML =
-          `<div class="empty">No reports in this period yet.</div>`;
-        $("trendFoot").textContent = "";
-        return;
-      }
-
-      const width = Math.max(320, $("trendChart").clientWidth - 40);
-      const left = 36, right = 8;
-      const plotW = width - left - right;
-      const step = plotW / binCount;
-      const x = i => left + i * step;
-      const barW = Math.max(1, Math.min(10, (step - 3) / 2));
-
-      const fmtBin = (bin, long = false) => {
-        const start = new Date(bin.start);
-        const opts = { month: "short", day: "numeric", timeZone: "UTC" };
-        if (binDays === 1) return start.toLocaleDateString("en-US", opts);
-        const end = new Date(bin.start + 6 * DAY);
-        return long
-          ? `Week of ${start.toLocaleDateString("en-US", opts)}–${end.toLocaleDateString("en-US", opts)}`
-          : start.toLocaleDateString("en-US", opts);
-      };
-
-      const niceMax = value => {
-        if (value <= 5) return Math.max(1, Math.ceil(value));
-        const magnitude = 10 ** Math.floor(Math.log10(value));
-        return Math.ceil(value / magnitude * 2) / 2 * magnitude;
-      };
-
-      let y0 = 0;
-      const parts = [];
-
-      // Row 1: reports and cleanups per bin (same unit, two series, one axis).
-      const countMax = niceMax(Math.max(...bins.map(b => Math.max(b.reports, b.cleaned))));
-      const rowH = 110;
-      const countY = v => y0 + 22 + rowH - (v / countMax) * rowH;
-      parts.push(`
-        <text class="rowtitle" x="0" y="${y0 + 10}">${binDays === 1 ? "Reports and cleanups per day" : "Reports and cleanups per week"}</text>
-        <line class="grid" x1="${left}" x2="${width - right}" y1="${countY(countMax)}" y2="${countY(countMax)}"/>
-        <line class="grid" x1="${left}" x2="${width - right}" y1="${countY(countMax / 2)}" y2="${countY(countMax / 2)}"/>
-        <text class="axis" x="${left - 6}" y="${countY(countMax) + 3}" text-anchor="end">${fmtNumber(countMax)}</text>
-        <text class="axis" x="${left - 6}" y="${countY(countMax / 2) + 3}" text-anchor="end">${fmtNumber(countMax / 2)}</text>
-        <line class="base" x1="${left}" x2="${width - right}" y1="${countY(0)}" y2="${countY(0)}"/>`);
-      bins.forEach((bin, i) => {
-        const cx = x(i) + step / 2;
-        [[bin.reports, "var(--crowd)", cx - barW - 1], [bin.cleaned, "var(--you)", cx + 1]].forEach(([v, color, bx]) => {
-          if (!v) return;
-          const h = Math.max(2, countY(0) - countY(v));
-          const r = Math.min(4, barW / 2, h);
-          // Rounded data end, square at the baseline.
-          parts.push(`<path fill="${color}" d="M${bx},${countY(0)} v${-(h - r)} q0,${-r} ${r},${-r} h${barW - 2 * r} q${r},0 ${r},${r} v${h - r} z"/>`);
-        });
-      });
-      const countBottom = countY(0);
-      y0 = countBottom + 26;
-
-      // Row 2: average litter score (0–100) per bin; gaps where nothing was reported.
-      const scoreH = 70;
-      const scoreY = v => y0 + 22 + scoreH - (v / 100) * scoreH;
-      let path = "";
-      bins.forEach((bin, i) => {
-        if (!bin.reports) { path += " "; return; }
-        const cmd = path.endsWith(" ") || !path ? "M" : "L";
-        path += `${cmd}${(x(i) + step / 2).toFixed(1)},${scoreY(bin.scoreSum / bin.reports).toFixed(1)}`;
-      });
-      parts.push(`
-        <text class="rowtitle" x="0" y="${y0 + 10}">Average litter score</text>
-        <line class="grid" x1="${left}" x2="${width - right}" y1="${scoreY(100)}" y2="${scoreY(100)}"/>
-        <line class="grid" x1="${left}" x2="${width - right}" y1="${scoreY(50)}" y2="${scoreY(50)}"/>
-        <text class="axis" x="${left - 6}" y="${scoreY(100) + 3}" text-anchor="end">100</text>
-        <text class="axis" x="${left - 6}" y="${scoreY(50) + 3}" text-anchor="end">50</text>
-        <line class="base" x1="${left}" x2="${width - right}" y1="${scoreY(0)}" y2="${scoreY(0)}"/>
-        <path d="${path.trim()}" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
-      bins.forEach((bin, i) => {
-        if (!bin.reports) return;
-        const prev = bins[i - 1]?.reports, next = bins[i + 1]?.reports;
-        if (!prev && !next) {
-          parts.push(`<circle cx="${x(i) + step / 2}" cy="${scoreY(bin.scoreSum / bin.reports)}" r="3" fill="var(--cyan)"/>`);
-        }
-      });
-      const scoreBottom = scoreY(0);
-      y0 = scoreBottom + 26;
-
-      // Row 3: river flow at one USGS gauge (only when Tiger Data has gauge readings).
-      let flowBottom = null;
-      if (hasFlow) {
-        const flowMax = niceMax(Math.max(...bins.map(b => b.flowDays ? b.flowSum / b.flowDays : 0)));
-        const flowH = 70;
-        const flowY = v => y0 + 22 + flowH - (v / flowMax) * flowH;
-        let flowPath = "";
-        bins.forEach((bin, i) => {
-          if (!bin.flowDays) { flowPath += " "; return; }
-          const cmd = flowPath.endsWith(" ") || !flowPath ? "M" : "L";
-          flowPath += `${cmd}${(x(i) + step / 2).toFixed(1)},${flowY(bin.flowSum / bin.flowDays).toFixed(1)}`;
-        });
-        parts.push(`
-          <text class="rowtitle" x="0" y="${y0 + 10}">River flow, ${escapeHTML(gaugeName ?? "USGS gauge")} (cfs, daily mean)</text>
-          <line class="grid" x1="${left}" x2="${width - right}" y1="${flowY(flowMax)}" y2="${flowY(flowMax)}"/>
-          <text class="axis" x="${left - 6}" y="${flowY(flowMax) + 3}" text-anchor="end">${fmtNumber(flowMax)}</text>
-          <line class="base" x1="${left}" x2="${width - right}" y1="${flowY(0)}" y2="${flowY(0)}"/>
-          <path d="${flowPath.trim()}" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
-        flowBottom = flowY(0);
-        y0 = flowBottom + 26;
-      }
-
-      // Shared time axis.
-      const ticks = Math.min(6, binCount);
-      for (let t = 0; t < ticks; t++) {
-        const i = Math.round(t * (binCount - 1) / Math.max(1, ticks - 1));
-        const anchor = t === 0 ? "start" : t === ticks - 1 ? "end" : "middle";
-        const tx = t === 0 ? x(i) : t === ticks - 1 ? x(i) + step : x(i) + step / 2;
-        parts.push(`<text class="axis" x="${tx}" y="${y0 - 8}" text-anchor="${anchor}">${fmtBin(bins[i])}</text>`);
-      }
-      const height = y0;
-
-      // Hover: one full-height band per bin, with every row's value in the tooltip.
-      bins.forEach((bin, i) => {
-        const lines = [
-          `<b>${fmtBin(bin, true)}</b>`,
-          `Reports: ${bin.reports} · Cleaned: ${bin.cleaned}`,
-          `Avg score: ${bin.reports ? Math.round(bin.scoreSum / bin.reports) : "–"}`
-        ];
-        if (hasFlow) {
-          lines.push(`River flow: ${bin.flowDays ? fmtNumber(bin.flowSum / bin.flowDays) + " cfs" : "–"}`);
-        }
-        parts.push(`<rect class="hit" x="${x(i)}" y="0" width="${step}" height="${height - 18}" data-tip="${escapeHTML(lines.join("<br>"))}"/>`);
-      });
-
-      $("trendChart").innerHTML = `
-        <div class="trendkeys">
-          <span class="key"><span class="swatch" style="background:var(--crowd)"></span>Reports</span>
-          <span class="key"><span class="swatch" style="background:var(--you)"></span>Cleaned</span>
-        </div>
-        <div class="trendchart">
-          <svg viewBox="0 0 ${width} ${height}" height="${height}" role="img"
-            aria-label="Reports, cleanups and average litter score over the last ${trendDays} days">
-            ${parts.join("")}
-          </svg>
-        </div>`;
-
-      $("trendFoot").textContent = hasFlow
-        ? "River flow: USGS provisional data. Rising flow after storms can wash litter out of storm drains and sewer overflows."
-        : "";
-    }
-
-    document.querySelectorAll("[data-range]").forEach(button => {
-      button.onclick = () => {
-        trendDays = Number(button.dataset.range);
-        document.querySelectorAll("[data-range]").forEach(item => {
-          const active = item === button;
-          item.classList.toggle("active", active);
-          item.setAttribute("aria-pressed", String(active));
-        });
-        renderTrends();
-      };
-    });
-
-    $("trendWaterway").onchange = renderTrends;
-
-    window.addEventListener("resize", () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        if (currentView === "overview") renderTrends();
-      }, 200);
-    });
-
-    /* =========================
-       DATABASE PANEL
-       ========================= */
-    const fmtBytes = bytes => bytes >= 1048576
-      ? `${fmtNumber(bytes / 1048576, 1)} MB`
-      : `${fmtNumber(bytes / 1024, 0)} kB`;
-
-    async function loadDbInfo() {
-      let info;
-      try {
-        info = await api("/api/db");
-      } catch {
-        $("dbSubtitle").textContent = "Database info unavailable";
-        $("dbGrid").innerHTML = "";
-        return;
-      }
-
-      if (info.backend !== "tigerdata") {
-        $("dbSubtitle").textContent = "Running on a local SQLite file";
-        $("dbGrid").innerHTML = `
-          <p class="dbnote">
-            Set <code>PWW_DATABASE_URL</code> to a Tiger Data service to store reports in
-            TimescaleDB hypertables, serve these charts from continuous aggregates,
-            compress history and stream live USGS river readings.
-          </p>`;
-        return;
-      }
-
-      $("dbSubtitle").textContent =
-        `Tiger Data · TimescaleDB ${info.timescaledb_version}`;
-
-      const tile = (label, value, foot) => `
-        <div class="stat">
-          <div class="statheader">${label}</div>
-          <div class="statnumber">${value}</div>
-          <div class="statfoot">${foot}</div>
-        </div>`;
-
-      const tiles = info.hypertables.map(h => {
-        const ratio = h.bytes_after_compression
-          ? h.bytes_before_compression / h.bytes_after_compression
-          : 0;
-        const foot = ratio
-          ? `${h.chunks} chunks · ${h.compressed_chunks} compressed ${fmtNumber(ratio, 1)}× ` +
-            `(${fmtBytes(h.bytes_before_compression)} → ${fmtBytes(h.bytes_after_compression)})`
-          : `${h.chunks} chunks · ${fmtBytes(h.total_bytes)} · compression ${h.compression_enabled ? "on" : "off"}`;
-        return tile(`<span>Hypertable <code>${escapeHTML(h.name)}</code></span>`, fmtNumber(h.rows), foot);
-      });
-
-      const timing = info.trend_query_ms;
-      tiles.push(tile(
-        "Trend query",
-        `${fmtNumber(timing.continuous_aggregate, 1)} <small>ms</small>`,
-        `from a continuous aggregate · ${fmtNumber(timing.raw_hypertable, 1)} ms scanning raw rows`
-      ));
-
-      const sync = info.river_sync;
-      const syncNote = !sync
-        ? "River polling is off."
-        : sync.last_error
-          ? `Last river sync failed: ${escapeHTML(sync.last_error)}`
-          : sync.last_result
-            ? `River sync every ${sync.every_minutes} min · last run added ${fmtNumber(sync.last_result.readings_added)} readings from ${sync.last_result.sites} gauges.`
-            : `River sync every ${sync.every_minutes} min · first run in progress.`;
-
-      $("dbGrid").innerHTML = tiles.join("") + `
-        <p class="dbnote">
-          Continuous aggregates: ${info.continuous_aggregates.map(name =>
-            `<code>${escapeHTML(name)}</code>`).join(", ")}
-          (<code>river_daily</code> is built on <code>river_hourly</code>).
-          ${syncNote}
-        </p>`;
-    }
 
     /* =========================
        EXPORT

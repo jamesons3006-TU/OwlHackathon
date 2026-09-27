@@ -98,17 +98,3 @@ def test_faster_rcnn_rejects_other_checkpoints(tmp_path):
 def test_mock_is_deterministic():
     img = Image.new("RGB", (640, 480), (20, 80, 120))
     assert MockDetector().detect(img) == MockDetector().detect(img)
-
-
-def test_auto_without_any_model_explains_what_to_set(monkeypatch, tmp_path):
-    import importlib.util
-    from app import config
-    from app.detector import load_detector
-    monkeypatch.setattr(config, "DETECTOR", "auto")
-    monkeypatch.setattr(config, "MODEL_URL", "")
-    monkeypatch.setattr(config, "FRCNN_MODEL_PATH", tmp_path / "missing.pth")
-    monkeypatch.setattr(config, "GARBAGE_MODEL_PATH", tmp_path / "missing.pt")
-    real = importlib.util.find_spec
-    monkeypatch.setattr(importlib.util, "find_spec", lambda name, *a: None if name == "ultralytics" else real(name, *a))
-    with pytest.raises(RuntimeError, match="PWW_DETECTOR=mock"):
-        load_detector()

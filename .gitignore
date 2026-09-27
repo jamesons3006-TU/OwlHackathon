@@ -12,9 +12,3 @@ runs/
 WaterDataset.zip
 *.zip
 
-
-# database credentials (e.g. the Tiger Cloud config download)
-.env
-.env.*
-*.env
-*credentials*

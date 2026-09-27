@@ -18,12 +18,17 @@ Contract (see backend/app/detector.py, HttpDetector):
 """
 import io
 import os
+from pathlib import Path
 
 from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from PIL import Image
 
 MODEL_TYPE = os.getenv("MODEL_TYPE", "frcnn")
-WEIGHTS = os.getenv("MODEL_WEIGHTS", "garbage.pth" if MODEL_TYPE == "frcnn" else "garbage.pt")
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_WEIGHTS = PROJECT_ROOT / "backend" / "models" / "model.pth"
+
+WEIGHTS = os.getenv("MODEL_WEIGHTS", str(DEFAULT_WEIGHTS))
 FRCNN_ARCH = os.getenv("FRCNN_ARCH", "fasterrcnn_resnet50_fpn")
 CLASS_NAMES = ["__background__"] + [c.strip() for c in os.getenv("CLASS_NAMES", "garbage").split(",") if c.strip()]
 MODEL_NAME = os.getenv("MODEL_NAME", os.path.basename(WEIGHTS))
