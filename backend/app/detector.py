@@ -203,10 +203,8 @@ class FasterRCNNDetector:
             scores,
             labels,
         ):
-            # Our trained model:
-            # 0 = background
-            # 1 = garbage
-            if int(label) != 1:
+            # 0 = background; 1..N follow PWW_CLASS_NAMES.
+            if int(label) == 0:
                 continue
 
             if score < config.CONFIDENCE_THRESHOLD:
@@ -234,7 +232,7 @@ class FasterRCNNDetector:
 
             detections.append(
                 Detection(
-                    label="garbage",
+                    label=self._label(int(label)),
                     confidence=float(score),
                     x=x1,
                     y=y1,

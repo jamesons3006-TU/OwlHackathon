@@ -928,6 +928,175 @@
       border-color: #6a2432;
     }
 
+    /* =========================
+       TAKE ACTION (demo: nothing is sent)
+       ========================= */
+    .takeaction {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border: 1px solid #1f6150;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0a3a33, #072835);
+    }
+
+    .takeaction strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .takeaction p {
+      margin: 2px 0 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .takeaction .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .takeaction .buttons button {
+      flex: 1 1 180px;
+    }
+
+    .demobadge {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 2px 8px;
+      border: 1px solid #ffab2055;
+      border-radius: 99px;
+      color: var(--orange);
+      font-size: 11px;
+      font-weight: 600;
+      vertical-align: middle;
+    }
+
+    .actiontabs {
+      display: flex;
+      gap: 6px;
+      padding: 4px;
+      margin-bottom: 6px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #072835;
+    }
+
+    .actiontabs button {
+      flex: 1;
+      padding: 9px 10px;
+      border-radius: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .actiontabs button[aria-selected="true"] {
+      background: #0f4252;
+      color: var(--text);
+    }
+
+    .actiondone {
+      margin-top: 16px;
+      padding: 18px;
+      border: 1px solid #2be39155;
+      border-radius: 12px;
+      background: #0b3a33;
+      text-align: center;
+    }
+
+    .actiondone .big {
+      display: block;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    .actiondone small {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .actiondone code {
+      padding: 2px 6px;
+      border-radius: 5px;
+      background: #062431;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .petitioncard {
+      margin-top: 16px;
+      padding: 18px;
+      border: 1px solid #265366;
+      border-radius: 12px;
+      background: #072835;
+    }
+
+    .petitioncard h3 {
+      margin: 0 0 4px;
+      font-size: 18px;
+      letter-spacing: -0.3px;
+    }
+
+    .petitioncard .to {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .petitioncard .body {
+      margin: 12px 0;
+      font-size: 13px;
+      white-space: pre-line;
+    }
+
+    .progress {
+      height: 10px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: #0d394b;
+    }
+
+    .progress span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--green), var(--cyan));
+      transition: width 0.4s ease;
+    }
+
+    .signcount {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .signcount b {
+      color: var(--text);
+    }
+
+    .sharelink {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .sharelink input {
+      flex: 1;
+      min-width: 0;
+      padding: 9px 10px;
+      border: 1px solid #1d4b60;
+      border-radius: 7px;
+      background: #0d394b;
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+    }
+
     .history {
       margin: 16px 0 0;
       padding: 0;
@@ -2135,6 +2304,15 @@
 
         <div class="recs" id="resultRecs"></div>
 
+        <div class="takeaction">
+          <strong>Take action</strong>
+          <p>Send this sighting to the people who can clean it up, or rally your neighbors.</p>
+          <div class="buttons">
+            <button type="button" class="primary" data-action="report" data-from="result">Report to authorities</button>
+            <button type="button" class="secondary" data-action="petition" data-from="result">Start a petition</button>
+          </div>
+        </div>
+
         <label class="field">
           Location name
           <input
@@ -2220,6 +2398,15 @@
       <div id="detailData" class="detailgrid"></div>
       <div id="detailRecs" class="recs"></div>
 
+      <div class="takeaction">
+        <strong>Take action</strong>
+        <p>Send this sighting to the people who can clean it up, or rally your neighbors.</p>
+        <div class="buttons">
+          <button type="button" class="primary" data-action="report" data-from="detail">Report to authorities</button>
+          <button type="button" class="secondary" data-action="petition" data-from="detail">Start a petition</button>
+        </div>
+      </div>
+
       <label class="field">
         Cleanup status
         <select id="detailStatus"></select>
@@ -2238,6 +2425,132 @@
 
       <div class="dialogactions">
         <button class="primary" id="saveStatus">Save status</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Take action modal: report to authorities or start a petition (demo, nothing is sent) -->
+  <dialog id="actionDialog" aria-labelledby="actionTitle">
+    <div class="dialoghead">
+      <h2 id="actionTitle">Take action <span class="demobadge">Demo</span></h2>
+      <button
+        class="close"
+        aria-label="Close dialog"
+        data-close="actionDialog"
+      >×</button>
+    </div>
+
+    <div class="dialogbody">
+      <div class="actiontabs" role="tablist">
+        <button type="button" role="tab" id="tabReport" data-tab="report">Report to authorities</button>
+        <button type="button" role="tab" id="tabPetition" data-tab="petition">Start a petition</button>
+      </div>
+
+      <!-- Report to authorities -->
+      <div id="reportPane">
+        <div id="reportForm">
+          <label class="field">
+            Send to
+            <select id="authorityPick"></select>
+          </label>
+
+          <label class="field">
+            Subject
+            <input id="authoritySubject" maxlength="160">
+          </label>
+
+          <label class="field">
+            Message
+            <textarea id="authorityMessage" style="min-height:150px"></textarea>
+          </label>
+
+          <label class="check">
+            <input type="checkbox" id="attachPhoto" checked>
+            <span>
+              Attach the photo with detected litter boxed
+              <small>Includes the score, location and a link to the report.</small>
+            </span>
+          </label>
+
+          <label class="check">
+            <input type="checkbox" id="followUp" checked>
+            <span>
+              Email me when the status changes
+              <small>The report moves to “Verified” once the agency responds.</small>
+            </span>
+          </label>
+
+          <div class="dialogactions">
+            <button type="button" class="primary" id="sendAuthority">Send report</button>
+          </div>
+        </div>
+
+        <div id="reportDone" class="actiondone hidden">
+          <span class="big">Report sent ✓</span>
+          <span id="reportDoneTo"></span>
+          <small>Reference <code id="reportRef"></code> · expected response within 3 business days</small>
+          <small>Demo only: no message was actually sent.</small>
+        </div>
+      </div>
+
+      <!-- Petition -->
+      <div id="petitionPane" class="hidden">
+        <div id="petitionForm">
+          <label class="field">
+            Petition title
+            <input id="petitionTitle" maxlength="120">
+          </label>
+
+          <label class="field">
+            Addressed to
+            <select id="petitionTarget">
+              <option>Philadelphia City Council</option>
+              <option>Philadelphia Water Department</option>
+              <option>Office of the Mayor</option>
+              <option>PA Department of Environmental Protection</option>
+            </select>
+          </label>
+
+          <label class="field">
+            What we’re asking for
+            <textarea id="petitionBody" style="min-height:130px"></textarea>
+          </label>
+
+          <label class="field">
+            Signature goal
+            <select id="petitionGoal">
+              <option value="100">100 signatures</option>
+              <option value="250" selected>250 signatures</option>
+              <option value="500">500 signatures</option>
+              <option value="1000">1,000 signatures</option>
+            </select>
+          </label>
+
+          <div class="dialogactions">
+            <button type="button" class="primary" id="launchPetition">Launch petition</button>
+          </div>
+        </div>
+
+        <div id="petitionDone" class="hidden">
+          <div class="petitioncard">
+            <h3 id="petitionCardTitle"></h3>
+            <span class="to" id="petitionCardTo"></span>
+            <p class="body" id="petitionCardBody"></p>
+            <div class="progress"><span id="petitionBar" style="width:0%"></span></div>
+            <div class="signcount">
+              <span><b id="petitionCount">0</b> signed</span>
+              <span id="petitionGoalText"></span>
+            </div>
+            <div class="sharelink">
+              <input id="petitionLink" readonly aria-label="Petition link">
+              <button type="button" class="secondary" id="copyPetition">Copy link</button>
+            </div>
+            <div class="dialogactions">
+              <button type="button" class="primary" id="signPetition">Sign petition</button>
+            </div>
+          </div>
+          <p class="notice">Demo only: the petition isn’t published and signatures are simulated.</p>
+        </div>
       </div>
     </div>
   </dialog>
@@ -3349,6 +3662,163 @@
         ${actions ? `<ul>${actions}</ul>` : ""}
       `;
     }
+
+    /* =========================
+       TAKE ACTION (demo)
+       Report to authorities or start a petition. Nothing leaves the
+       browser: sending and signatures are simulated for the demo.
+       ========================= */
+    const FALLBACK_AUTHORITIES = [
+      { name: "Philly311", contact: "Call 311 or philly311.phila.gov" },
+      { name: "Philadelphia Water Department", contact: "(215) 685-6300" },
+      { name: "PA DEP Southeast Region", contact: "(484) 250-5900" }
+    ];
+
+    let actionReport = null;
+    let petitionTimer = null;
+
+    function actionTarget(from) {
+      if (from === "result") return draft;
+      return reports.find(item => item.id === selectedReportId) || null;
+    }
+
+    function placeText(report) {
+      const name = report.location_name || report.waterway || "an unnamed spot";
+      const coords = report.latitude != null && report.longitude != null
+        ? ` (${Number(report.latitude).toFixed(4)}, ${Number(report.longitude).toFixed(4)})`
+        : "";
+      return name + coords;
+    }
+
+    function selectActionTab(tab) {
+      $("tabReport").setAttribute("aria-selected", String(tab === "report"));
+      $("tabPetition").setAttribute("aria-selected", String(tab === "petition"));
+      $("reportPane").classList.toggle("hidden", tab !== "report");
+      $("petitionPane").classList.toggle("hidden", tab !== "petition");
+    }
+
+    function openAction(report, tab) {
+      if (!report) return;
+      actionReport = report;
+      clearInterval(petitionTimer);
+
+      const severity = SEVERITY_LABEL[report.severity] || report.severity;
+      const place = placeText(report);
+      const waterway = report.waterway || "our waterways";
+      const items = itemsText(report.item_count);
+
+      // Report to authorities: most relevant contact first.
+      const authorities = (report.recommendation?.authorities || []).length
+        ? report.recommendation.authorities
+        : FALLBACK_AUTHORITIES;
+      $("authorityPick").innerHTML = authorities.map((authority, index) =>
+        `<option value="${index}">${escapeHTML(authority.name)} · ${escapeHTML(authority.contact || "")}</option>`
+      ).join("");
+      $("authoritySubject").value = `Litter reported at ${place}: ${severity} (${report.score}/100)`;
+      $("authorityMessage").value =
+        `Hello,\n\nA Riverwatch user reported visible litter at ${place}` +
+        `${report.waterway ? ` on the ${report.waterway}` : ""}.\n\n` +
+        `• Litter score: ${report.score}/100 (${severity})\n` +
+        `• Items detected: ${items}\n` +
+        (report.hazard_suspected ? "• Reporter also suspects a hazard (oil, chemicals or sewage)\n" : "") +
+        `• Photo and details: https://riverwatch.us/r/${report.id.slice(0, 8)}\n\n` +
+        `Could you schedule a cleanup or let us know who is responsible for this site?\n\n` +
+        `Thank you,\n${currentUser === "You" ? "A Riverwatch volunteer" : currentUser}`;
+      $("reportForm").classList.remove("hidden");
+      $("reportDone").classList.add("hidden");
+      $("sendAuthority").disabled = false;
+      $("sendAuthority").textContent = "Send report";
+
+      // Petition
+      $("petitionTitle").value = `Clean up and protect ${report.location_name || waterway}`;
+      $("petitionBody").value =
+        `Residents found ${items} of litter at ${place}, rated ${severity.toLowerCase()} ` +
+        `(${report.score}/100) by Riverwatch.\n\nWe ask the city to:\n` +
+        `1. Schedule a cleanup of this site within 30 days\n` +
+        `2. Add trash cans and signage near the water\n` +
+        `3. Check the site monthly and publish the results`;
+      $("petitionForm").classList.remove("hidden");
+      $("petitionDone").classList.add("hidden");
+
+      selectActionTab(tab);
+      $("actionDialog").showModal();
+    }
+
+    function updatePetition(count, goal) {
+      $("petitionCount").textContent = count.toLocaleString("en-US");
+      $("petitionBar").style.width = `${Math.min(100, (count / goal) * 100)}%`;
+    }
+
+    document.querySelectorAll("[data-action]").forEach(button => {
+      button.onclick = () => openAction(actionTarget(button.dataset.from), button.dataset.action);
+    });
+
+    $("tabReport").onclick = () => selectActionTab("report");
+    $("tabPetition").onclick = () => selectActionTab("petition");
+
+    $("sendAuthority").onclick = () => {
+      const authorities = actionReport?.recommendation?.authorities?.length
+        ? actionReport.recommendation.authorities
+        : FALLBACK_AUTHORITIES;
+      const authority = authorities[Number($("authorityPick").value)] || authorities[0];
+
+      $("sendAuthority").disabled = true;
+      $("sendAuthority").textContent = "Sending…";
+
+      setTimeout(() => {
+        const ref = "RW-" + new Date().getFullYear() + "-" +
+          String(Math.floor(1000 + Math.random() * 9000));
+        $("reportRef").textContent = ref;
+        $("reportDoneTo").textContent = `Delivered to ${authority.name}`;
+        $("reportForm").classList.add("hidden");
+        $("reportDone").classList.remove("hidden");
+        showToast(`Report sent to ${authority.name} (demo)`);
+      }, 1100);
+    };
+
+    $("launchPetition").onclick = () => {
+      const goal = Number($("petitionGoal").value);
+      let count = 1; // the organizer signs first
+      const slug = ($("petitionTitle").value || "petition")
+        .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+
+      $("petitionCardTitle").textContent = $("petitionTitle").value || "Untitled petition";
+      $("petitionCardTo").textContent = `To: ${$("petitionTarget").value}`;
+      $("petitionCardBody").textContent = $("petitionBody").value;
+      $("petitionGoalText").textContent = `Goal: ${goal.toLocaleString("en-US")}`;
+      $("petitionLink").value = `https://riverwatch.us/p/${slug}`;
+      $("signPetition").disabled = false;
+      $("signPetition").textContent = "Sign petition";
+
+      $("petitionForm").classList.add("hidden");
+      $("petitionDone").classList.remove("hidden");
+      updatePetition(count, goal);
+      showToast("Petition launched (demo)");
+
+      // Simulated neighbors signing so the demo feels alive.
+      clearInterval(petitionTimer);
+      petitionTimer = setInterval(() => {
+        if (!$("actionDialog").open || count >= goal) return clearInterval(petitionTimer);
+        count += 1 + Math.floor(Math.random() * 3);
+        updatePetition(Math.min(count, goal), goal);
+      }, 1400);
+
+      $("signPetition").onclick = () => {
+        count += 1;
+        updatePetition(Math.min(count, goal), goal);
+        $("signPetition").disabled = true;
+        $("signPetition").textContent = "Signed ✓";
+      };
+    };
+
+    $("copyPetition").onclick = async () => {
+      try {
+        await navigator.clipboard.writeText($("petitionLink").value);
+        showToast("Link copied");
+      } catch {
+        $("petitionLink").select();
+      }
+    };
 
     /* =========================
        REPORT DETAILS

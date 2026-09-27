@@ -6,6 +6,7 @@ import io
 import json
 import time
 import uuid
+import zipfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
@@ -334,8 +335,8 @@ def create_app(
             latitude is not None
             and longitude is not None
         ):
-            location_source = "form"
-            location_confirmed = True
+            # Confirmed later, when the user places the pin on the map.
+            location_source = "reporter"
 
         elif (
             exif.get("latitude") is not None
@@ -344,7 +345,6 @@ def create_app(
             latitude = exif["latitude"]
             longitude = exif["longitude"]
             location_source = "exif"
-            location_confirmed = False
 
         in_philadelphia = None
 
@@ -525,7 +525,7 @@ def create_app(
         )
 
         return {
-            "reports": [
+            "items": [
                 _public(row)
                 for row in rows
             ],
@@ -739,13 +739,19 @@ def create_app(
                         ],
                     },
 
+                    # Heat-map intensity: weight = score / 100.
                     "properties": {
-                        key: value
-                        for key, value in point.items()
-                        if key not in (
-                            "latitude",
-                            "longitude",
-                        )
+                        "id": point["id"],
+                        "score": point["score"],
+                        "weight": round(point["score"] / 100, 3),
+                        "severity": point["severity"],
+                        "status": point["status"],
+                        "waterway": point["waterway"],
+                        "item_count": point["item_count"],
+                        "created_at": point["created_at"],
+                        "location_confirmed": bool(
+                            point["location_confirmed"]
+                        ),
                     },
                 }
             )
@@ -761,9 +767,9 @@ def create_app(
         request: Request,
 
         # Frontend sends the desired grid size in meters.
-        cell_m: float = Query(
+        cell_m: int = Query(
             500,
-            gt=0,
+            ge=50,
             le=10000,
         ),
 
@@ -811,6 +817,11 @@ def create_app(
 
         return {
             "cell_m": cell_m,
+            "count": len(bubbles),
+            "max_report_count": max(
+                (bubble["report_count"] for bubble in bubbles),
+                default=0,
+            ),
             "bubbles": bubbles,
         }
 
@@ -831,10 +842,23 @@ def create_app(
         waterway: str | None = Query(None),
     ):
 
-        return request.app.state.store.trends(
+        store = request.app.state.store
+
+        start = time.perf_counter()
+
+        rows = store.trends(
             days=days,
             waterway=waterway,
         )
+
+        return {
+            "database": store.backend,
+            "days": rows,
+            "query_ms": round(
+                (time.perf_counter() - start) * 1000,
+                2,
+            ),
+        }
 
     # ------------------------------------------------------------------
     # River / USGS data
@@ -845,12 +869,31 @@ def create_app(
         request: Request,
     ):
 
+        store = request.app.state.store
+
+        # One entry per gauge, with its latest reading of each parameter.
+        sites: dict[str, dict] = {}
+
+        for reading in store.river_latest():
+            site = sites.setdefault(
+                reading["site_id"],
+                {
+                    "site_id": reading["site_id"],
+                    "name": reading["name"],
+                    "waterway": reading["waterway"],
+                    "readings": {},
+                },
+            )
+
+            site["readings"][reading["parameter"]] = {
+                "value": reading["value"],
+                "time": reading["time"],
+            }
+
         return {
-            "parameters": PARAMETERS,
-            "readings": (
-                request.app.state.store
-                .river_latest()
-            ),
+            "available": store.backend == "tigerdata",
+            "sites": list(sites.values()),
+            "source": "USGS provisional data",
         }
 
     @app.get("/api/river/daily")
@@ -879,17 +922,15 @@ def create_app(
                 ),
             )
 
+        store = request.app.state.store
+
         return {
+            "available": store.backend == "tigerdata",
             "parameter": parameter,
-            "days": days,
-            "waterway": waterway,
-            "readings": (
-                request.app.state.store
-                .river_series(
-                    days,
-                    parameter,
-                    waterway,
-                )
+            "series": store.river_series(
+                days,
+                parameter,
+                waterway,
             ),
         }
 
@@ -940,6 +981,8 @@ def create_app(
         format: Literal[
             "csv",
             "json",
+            "coco",
+            "zip",
         ] = Query("csv"),
 
         waterway: str | None = Query(None),
@@ -985,14 +1028,8 @@ def create_app(
 
         if format == "json":
 
-            payload = json.dumps(
-                public_rows,
-                indent=2,
-                default=str,
-            )
-
             return StreamingResponse(
-                iter([payload]),
+                iter([_to_json(public_rows)]),
                 media_type="application/json",
                 headers={
                     "Content-Disposition":
@@ -1000,48 +1037,65 @@ def create_app(
                 },
             )
 
-        output = io.StringIO()
+        if format == "coco":
 
-        if public_rows:
-
-            fieldnames = [
-                "id",
-                "created_at",
-                "captured_at",
-                "waterway",
-                "location_name",
-                "latitude",
-                "longitude",
-                "location_source",
-                "location_confirmed",
-                "in_philadelphia",
-                "notes",
-                "reporter",
-                "hazard_suspected",
-                "model_name",
-                "model_is_stand_in",
-                "score",
-                "severity",
-                "item_count",
-                "coverage_pct",
-                "authority_level",
-                "status",
-                "status_updated_at",
-            ]
-
-            writer = csv.DictWriter(
-                output,
-                fieldnames=fieldnames,
-                extrasaction="ignore",
+            return StreamingResponse(
+                iter([json.dumps(_to_coco(rows), indent=2)]),
+                media_type="application/json",
+                headers={
+                    "Content-Disposition":
+                        'attachment; filename="riverwatch-coco.json"'
+                },
             )
 
-            writer.writeheader()
+        if format == "zip":
 
-            for row in public_rows:
-                writer.writerow(row)
+            store = request.app.state.store
+
+            buffer = io.BytesIO()
+
+            with zipfile.ZipFile(
+                buffer,
+                "w",
+                zipfile.ZIP_DEFLATED,
+            ) as archive:
+
+                archive.writestr(
+                    "README.txt",
+                    SCORE_NOTE
+                    + "\nDetections are model predictions, "
+                    "not human-verified labels.\n",
+                )
+                archive.writestr("reports.csv", _to_csv(public_rows))
+                archive.writestr("reports.json", _to_json(public_rows))
+                archive.writestr(
+                    "annotations_coco.json",
+                    json.dumps(_to_coco(rows), indent=2),
+                )
+
+                for row in rows:
+                    archive.write(
+                        store.abs_path(row["image_path"]),
+                        f"images/{row['id']}.jpg",
+                    )
+                    archive.write(
+                        store.abs_path(row["annotated_path"]),
+                        f"annotated/{row['id']}.jpg",
+                    )
+
+            buffer.seek(0)
+
+            return StreamingResponse(
+                buffer,
+                media_type="application/zip",
+                headers={
+                    "Content-Disposition":
+                        'attachment; filename="riverwatch-dataset.zip"'
+                },
+            )
 
         return StreamingResponse(
-            iter([output.getvalue()]),
+            iter([_to_csv(public_rows)]),
             media_type="text/csv",
             headers={
                 "Content-Disposition":
@@ -1117,7 +1171,146 @@ def _public(
         "?annotated=true"
     )
 
+    # Every report response says what the score does not measure.
+    result["score_note"] = SCORE_NOTE
+
     return result
+
+
+CSV_FIELDS = [
+    "id",
+    "created_at",
+    "captured_at",
+    "waterway",
+    "location_name",
+    "latitude",
+    "longitude",
+    "location_source",
+    "location_confirmed",
+    "in_philadelphia",
+    "notes",
+    "reporter",
+    "hazard_suspected",
+    "model_name",
+    "model_is_stand_in",
+    "score",
+    "severity",
+    "item_count",
+    "coverage_pct",
+    "authority_level",
+    "status",
+    "status_updated_at",
+]
+
+
+def _to_csv(
+    reports: list[dict],
+) -> str:
+
+    output = io.StringIO()
+
+    writer = csv.DictWriter(
+        output,
+        fieldnames=CSV_FIELDS,
+        extrasaction="ignore",
+    )
+
+    writer.writeheader()
+
+    for report in reports:
+        writer.writerow(report)
+
+    return output.getvalue()
+
+
+def _to_json(
+    reports: list[dict],
+) -> str:
+
+    return json.dumps(
+        reports,
+        indent=2,
+        default=str,
+    )
+
+
+def _to_coco(
+    reports: list[dict],
+) -> dict:
+
+    """COCO detection labels: one image per report, one annotation per box."""
+
+    labels = sorted(
+        {
+            detection["label"]
+            for report in reports
+            for detection in report["detections"]
+        }
+    )
+
+    category_ids = {
+        label: index + 1
+        for index, label in enumerate(labels)
+    }
+
+    images = []
+    annotations = []
+
+    for image_id, report in enumerate(reports, start=1):
+
+        images.append(
+            {
+                "id": image_id,
+                "file_name": f"images/{report['id']}.jpg",
+                "width": report["image_width"],
+                "height": report["image_height"],
+                "report_id": report["id"],
+                "waterway": report["waterway"],
+                "latitude": report["latitude"],
+                "longitude": report["longitude"],
+                "date_captured": (
+                    report["captured_at"]
+                    or report["created_at"]
+                ),
+                "score": report["score"],
+                "severity": report["severity"],
+            }
+        )
+
+        for detection in report["detections"]:
+            annotations.append(
+                {
+                    "id": len(annotations) + 1,
+                    "image_id": image_id,
+                    "category_id": category_ids[detection["label"]],
+                    "bbox": [
+                        round(detection["x"], 2),
+                        round(detection["y"], 2),
+                        round(detection["w"], 2),
+                        round(detection["h"], 2),
+                    ],
+                    "area": round(detection["w"] * detection["h"], 2),
+                    "iscrowd": 0,
+                    "score": round(detection["confidence"], 4),
+                }
+            )
+
+    return {
+        "info": {
+            "description": (
+                "Philly Water Watch citizen reports "
+                "(model predictions, not human-verified). "
+                + SCORE_NOTE
+            ),
+            "date_created": now_iso(),
+        },
+        "images": images,
+        "annotations": annotations,
+        "categories": [
+            {"id": category_id, "name": label}
+            for label, category_id in category_ids.items()
+        ],
+    }
 
 
 def _in_philadelphia(
