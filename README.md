@@ -18,13 +18,20 @@ photo ──► detector (fine-tuned Faster R-CNN) ──► boxes ──► 0�
 cd backend
 python -m venv .venv
 .\.venv\Scripts\pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-.\.venv\Scripts\pip install -r requirements.txt
+.\.venv\Scripts\pip install -r requirements.txt -r requirements-models.txt
 .\.venv\Scripts\uvicorn app.main:app --reload
 ```
 
 Interactive API docs: http://127.0.0.1:8000/docs. For front-end work without a model, set `$env:PWW_DETECTOR="mock"` first.
 
 Run the tests with `.\.venv\Scripts\pytest`.
+
+## Deploy on Render
+
+[`render.yaml`](render.yaml) is a Render Blueprint for one web service that serves both the API and the front end. In Render: **New > Blueprint**, pick this repo, and apply. The app is then at `https://<service>.onrender.com`.
+
+- It installs only `requirements.txt` (no torch), so it starts with `PWW_DETECTOR=mock`. For real detections, run [`model_server/`](model_server/server.py) somewhere with the weights, then set `PWW_DETECTOR=http`, `PWW_MODEL_URL` and `PWW_MODEL_API_KEY` in the service's Environment tab.
+- Render's disk is wiped on every deploy and restart. Set `PWW_DATABASE_URL` to a Tiger Data connection string to keep report records (photos are still stored on that disk, so they are lost on redeploy).
 
 ## Plugging in the model
 

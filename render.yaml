@@ -1,0 +1,29 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Deploys the FastAPI backend, which also serves frontend/index.html at "/".
+services:
+  - type: web
+    name: owlhackathon
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      # torch/ultralytics are not installed here (too big for Render's free tier) and
+      # the trained .pth is not in git, so "auto" would crash on startup.
+      # mock = demo detections. To use the real model, host model_server/ elsewhere,
+      # then set PWW_DETECTOR=http and fill in PWW_MODEL_URL (+ PWW_MODEL_API_KEY).
+      - key: PWW_DETECTOR
+        value: mock
+      - key: PWW_MODEL_URL
+        sync: false
+      - key: PWW_MODEL_API_KEY
+        sync: false
+      # Optional Tiger Data / PostgreSQL connection string. Empty = SQLite on the
+      # service's disk, which Render wipes on every deploy and restart.
+      - key: PWW_DATABASE_URL
+        sync: false

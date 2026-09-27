@@ -1,7 +1,9 @@
+# Core API: enough to run with PWW_DETECTOR=mock, a remote model (PWW_MODEL_URL) and Tiger Data.
+# Local models also need requirements-models.txt (torch + ultralytics).
 fastapi>=0.115
 uvicorn[standard]>=0.30
 python-multipart>=0.0.9
 pillow>=10.4
-ultralytics>=8.3
 pytest>=8.3
 httpx>=0.27
+psycopg[binary,pool]>=3.2
