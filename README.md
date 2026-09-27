@@ -12,6 +12,15 @@ photo ──► detector (fine-tuned Faster R-CNN) ──► boxes ──► 0�
 
 > **What the score means:** it describes litter *visible in the photo*. It says nothing about chemical pollution, bacteria or whether the water is safe. Every API response carries this as `score_note`. The optional `hazard_suspected` checkbox (oil sheen, chemical smell, sewage) never changes the score; it only moves emergency contacts (PA DEP, National Response Center) to the top of the recommendations.
 
+## Quick demo
+
+Needs Python 3.10+.
+
+- **Windows:** double-click `demo.cmd`.
+- **macOS / Linux:** run `./demo.sh`.
+
+Then open http://127.0.0.1:8000/. The first run sets up `backend/.venv` and adds 400 synthetic demo reports (only if the database is empty), so the map and charts have something to show. If `backend/models/model.pth` exists, it installs PyTorch and uses that model; otherwise detections come from the mock detector. Set `PWW_DATABASE_URL` first to run on Tiger Data. Remove the demo reports with `python -m app.seed --clear` from `backend`.
+
 ## Run the backend
 
 Use PowerShell from the repository root, or `cd` into `backend` first. The key is that the virtual environment and app module must be resolved from the backend folder.
@@ -47,7 +56,7 @@ Run the tests with `.\.venv\Scripts\python.exe -m pytest` from the `backend` dir
 
 ## Front end
 
-[`frontend/index.html`](frontend/index.html) is the Riverwatch dashboard: one HTML file with no build step (Leaflet and the font load from CDNs).
+[`frontend/index.html`](frontend/index.html) is the Riverwatch dashboard: one HTML file with no build step. Leaflet is bundled in `frontend/vendor/`; the map tiles (CARTO, falling back to OpenStreetMap) and the font load from the internet.
 
 - **Overview:** stats, bubble map / heat map, priority hotspots and the report table.
 - **Report a sighting:** upload a photo, see the boxed detections, score and who to contact, then drop a pin on the map to confirm the location. GPS in the photo places the pin automatically.
@@ -79,12 +88,13 @@ The dashboard's **Litter over time** panel stacks reports and cleanups, average 
 
 New endpoints: `GET /api/trends?days=90&waterway=`, `GET /api/river/latest`, `GET /api/river/daily?parameter=discharge_cfs&days=90`, `GET /api/db`.
 
-**Commands** (from `backend`, with `PWW_DATABASE_URL` set):
+**Commands** (from `backend`, with `PWW_DATABASE_URL` set; `app.seed` also works on the local SQLite file):
 
 ```powershell
 .\.venv\Scripts\python.exe -m app.river --days 30          # backfill 30 days of river readings
 .\.venv\Scripts\python.exe -m app.seed                     # 400 synthetic demo reports over 120 days
 .\.venv\Scripts\python.exe -m app.seed --reports 200000    # load test
+.\.venv\Scripts\python.exe -m app.seed --if-empty          # only if there are no reports yet
 .\.venv\Scripts\python.exe -m app.seed --clear             # remove every synthetic report
 ```
 

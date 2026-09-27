@@ -1,4 +1,6 @@
-"""Fill Tiger Data with synthetic demo reports, for demos and load tests.
+"""Fill the database with synthetic demo reports, for demos and load tests.
+
+Uses Tiger Data when PWW_DATABASE_URL is set, otherwise the local SQLite file.
 
     python -m app.seed                      # 400 reports over the last 120 days
     python -m app.seed --reports 200000     # load test: bulk COPY, then compare aggregate vs raw query time
@@ -21,7 +23,7 @@ from PIL import Image, ImageDraw
 from . import config
 from .recommendations import recommend
 from .scoring import severity_for
-from .tigerstore import TigerStore, refresh_aggregate
+from .storage import open_store
 
 SEED_MODEL = "demo-seed"
 NOTE = "Synthetic demo report (python -m app.seed). Not a real sighting."
@@ -80,8 +82,9 @@ def make_report(rng: random.Random, now: datetime, days: int, image: str) -> tup
     if age_days > 3 and rng.random() < min(0.85, age_days / 40):
         for step in ("verified", "scheduled", "cleaned"):
             status = step
-            history.append((rid, step, created + timedelta(days=len(history) * rng.uniform(1, 4)),
-                            "Demo cleanup team", None, waterway))
+            # Never in the future.
+            changed = min(now, created + timedelta(days=len(history) * rng.uniform(1, 4)))
+            history.append((rid, step, changed, "Demo cleanup team", None, waterway))
             if rng.random() < 0.25:
                 break
     report = {
@@ -123,6 +126,7 @@ def seed(store, count: int, days: int, rng_seed: int | None = None) -> dict:
                     for entry in history:
                         copy.write_row(entry)
         load_s = time.perf_counter() - start
+    from .tigerstore import refresh_aggregate
     with store.pool.connection() as conn:
         for view in ("litter_daily", "cleanups_daily"):
             refresh_aggregate(conn, view)
@@ -136,30 +140,78 @@ def clear(store) -> int:
         conn.execute(f"DELETE FROM detections WHERE report_id IN ({ids})", (SEED_MODEL,))
         conn.execute(f"DELETE FROM status_history WHERE report_id IN ({ids})", (SEED_MODEL,))
         removed = conn.execute("DELETE FROM reports WHERE model_name = %s", (SEED_MODEL,)).rowcount
+    from .tigerstore import refresh_aggregate
     with store.pool.connection() as conn:
         for view in ("litter_daily", "cleanups_daily"):
             refresh_aggregate(conn, view)
     return removed
 
 
+def seed_local(store, count: int, days: int, rng_seed: int | None = None) -> dict:
+    """seed() for the local SQLite store."""
+    rng = random.Random(rng_seed)
+    now = datetime.now(timezone.utc)
+    image = placeholder(store.data_dir)
+    start = time.perf_counter()
+
+    def iso(value):
+        return value.isoformat(timespec="seconds") if isinstance(value, datetime) else value
+
+    with store._lock, store.db:
+        for _ in range(count):
+            report, boxes, history = make_report(rng, now, days, image)
+            row = {key: iso(value) for key, value in report.items()}
+            row["recommendation_json"] = row.pop("recommendation")
+            for flag in ("location_confirmed", "in_philadelphia", "hazard_suspected", "model_is_stand_in"):
+                row[flag] = int(row[flag])
+            cols = list(row)
+            store.db.execute(
+                f"INSERT INTO reports ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
+                [row[c] for c in cols],
+            )
+            store.db.executemany(
+                "INSERT INTO detections (report_id, label, confidence, x, y, w, h) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                boxes,
+            )
+            store.db.executemany(
+                "INSERT INTO status_history (report_id, status, changed_at, changed_by, note) VALUES (?, ?, ?, ?, ?)",
+                [(rid, status, iso(at), by, note) for rid, status, at, by, note, _ in history],
+            )
+    load_s = time.perf_counter() - start
+    return {"reports_added": count, "load_seconds": round(load_s, 2)}
+
+
+def clear_local(store) -> int:
+    """clear() for the local SQLite store."""
+    with store._lock, store.db:
+        ids = "SELECT id FROM reports WHERE model_name = ?"
+        store.db.execute(f"DELETE FROM detections WHERE report_id IN ({ids})", (SEED_MODEL,))
+        store.db.execute(f"DELETE FROM status_history WHERE report_id IN ({ids})", (SEED_MODEL,))
+        return store.db.execute("DELETE FROM reports WHERE model_name = ?", (SEED_MODEL,)).rowcount
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Synthetic demo reports for Tiger Data")
+    parser = argparse.ArgumentParser(description="Synthetic demo reports (Tiger Data or the local SQLite file)")
     parser.add_argument("--reports", type=int, default=400)
     parser.add_argument("--days", type=int, default=120, help="spread reports over this many past days")
     parser.add_argument("--seed", type=int, default=None, help="random seed, for repeatable data")
     parser.add_argument("--clear", action="store_true", help="remove all seeded reports and exit")
+    parser.add_argument("--if-empty", action="store_true", help="only add reports if the database has none")
     args = parser.parse_args()
-    if not config.DATABASE_URL:
-        raise SystemExit("Set PWW_DATABASE_URL to your Tiger Data service first.")
-
-    store = TigerStore(config.DATA_DIR, config.DATABASE_URL)
+    store = open_store(config.DATA_DIR, config.DATABASE_URL)
+    tiger = store.backend == "tigerdata"
     try:
-        if args.clear:
-            print({"reports_removed": clear(store)})
+        if args.if_empty and store.list(limit=1)[1]:
+            print("The database already has reports; not adding demo data.")
             return
-        print(seed(store, args.reports, args.days, args.seed))
-        timings = store.db_info()["trend_query_ms"]
-        print({"trend_query_ms": timings})
+        if args.clear:
+            print({"reports_removed": clear(store) if tiger else clear_local(store)})
+            return
+        if tiger:
+            print(seed(store, args.reports, args.days, args.seed))
+            print({"trend_query_ms": store.db_info()["trend_query_ms"]})
+        else:
+            print(seed_local(store, args.reports, args.days, args.seed))
     finally:
         store.close()
 

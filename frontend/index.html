@@ -7,7 +7,7 @@
 
   <link
     rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    href="vendor/leaflet/leaflet.css"
   >
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2193,6 +2193,9 @@
         <div class="empty hidden" id="empty">
           No reports match these filters.
         </div>
+        <div class="empty hidden" id="showAllRow">
+          <button class="rowaction" id="showAll" type="button"></button>
+        </div>
       </section>
 
       <footer>
@@ -2397,7 +2400,7 @@
   <div class="toast hidden" id="toast" role="status"></div>
   <div class="charttip hidden" id="chartTip" role="tooltip"></div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="vendor/leaflet/leaflet.js"></script>
 
   <script>
     /* =========================
@@ -2744,7 +2747,17 @@
       $("priorityStat").textContent = count(summary?.priority);
       $("cleanStat").textContent = count(summary?.cleaned);
 
-      $("reportRows").innerHTML = visibleReports.map(report => {
+      // The overview shows the newest few; the Reports view lists them all.
+      const OVERVIEW_ROWS = 10;
+      const tableReports = currentView === "overview"
+        ? visibleReports.slice(0, OVERVIEW_ROWS)
+        : visibleReports;
+      const hiddenRows = visibleReports.length - tableReports.length;
+      $("showAllRow").classList.toggle("hidden", hiddenRows <= 0);
+      $("showAll").textContent =
+        `See all ${visibleReports.length.toLocaleString("en-US")} reports →`;
+
+      $("reportRows").innerHTML = tableReports.map(report => {
         const date = new Date(report.created_at).toLocaleDateString(
           "en-US",
           { month: "short", day: "numeric" }
@@ -3521,6 +3534,11 @@
         setView(navigationButton.dataset.view);
       }
     });
+
+    $("showAll").onclick = () => {
+      setView("reports");
+      window.scrollTo({ top: 0 });
+    };
 
     document.querySelectorAll("[data-layer]").forEach(button => {
       button.onclick = () => {

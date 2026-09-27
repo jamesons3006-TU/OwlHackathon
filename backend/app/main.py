@@ -1163,6 +1163,22 @@ def create_app(
             media_type="text/html",
         )
 
+    @app.get(
+        "/vendor/{path:path}",
+        include_in_schema=False,
+    )
+    def vendor(path: str):
+        """Third-party files bundled with the front end (Leaflet)."""
+
+        root = (config.FRONTEND_DIR / "vendor").resolve()
+        file = (root / path).resolve()
+
+        # Refuse paths that climb out of the vendor folder.
+        if not file.is_relative_to(root) or not file.is_file():
+            raise HTTPException(404, "Not found")
+
+        return FileResponse(file)
+
     return app
 
 

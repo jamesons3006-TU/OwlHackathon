@@ -160,3 +160,14 @@ def test_serves_front_end(client, tmp_path, monkeypatch):
     monkeypatch.setattr(config, "FRONTEND_DIR", tmp_path / "site")
     r = client.get("/")
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
+
+
+def test_serves_bundled_vendor_files(client, tmp_path, monkeypatch):
+    from app import config
+    (tmp_path / "site" / "vendor" / "lib").mkdir(parents=True)
+    (tmp_path / "site" / "vendor" / "lib" / "lib.js").write_text("// lib")
+    (tmp_path / "site" / "secret.txt").write_text("nope")
+    monkeypatch.setattr(config, "FRONTEND_DIR", tmp_path / "site")
+    assert client.get("/vendor/lib/lib.js").text == "// lib"
+    assert client.get("/vendor/missing.js").status_code == 404
+    assert client.get("/vendor/%2e%2e/secret.txt").status_code == 404
