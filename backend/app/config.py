@@ -6,6 +6,17 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 DATA_DIR = Path(os.getenv("PWW_DATA_DIR", BACKEND_DIR / "data"))
 FRONTEND_DIR = Path(os.getenv("PWW_FRONTEND_DIR", BACKEND_DIR.parent / "frontend"))
+# Tiger Data (TimescaleDB / PostgreSQL) connection string, e.g. from Tiger Cloud:
+#   postgres://tsdbadmin:<password>@<service>.tsdb.cloud.timescale.com:<port>/tsdb?sslmode=require
+# Empty = local SQLite file in DATA_DIR (no time-series features).
+DATABASE_URL = os.getenv("PWW_DATABASE_URL", "")
+
+# USGS river gauges, polled into Tiger Data (see app/river.py). 0 turns polling off.
+RIVER_SYNC_MINUTES = float(os.getenv("PWW_RIVER_SYNC_MINUTES", "15"))
+RIVER_BACKFILL_DAYS = int(os.getenv("PWW_RIVER_BACKFILL_DAYS", "30"))
+RIVER_SITES = [s.strip() for s in os.getenv("PWW_RIVER_SITES", "").split(",") if s.strip()]
+USGS_IV_URL = os.getenv("PWW_USGS_IV_URL", "https://waterservices.usgs.gov/nwis/iv/")
+
 MODELS_DIR = Path(os.getenv("PWW_MODELS_DIR", BACKEND_DIR / "models"))
 
 # Which model backend to use (see app/detector.py and README "Plugging in the model"):

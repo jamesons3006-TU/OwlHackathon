@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import time
 import uuid
 import zipfile
 from contextlib import asynccontextmanager
@@ -23,7 +24,8 @@ from . import config
 from .detector import Detector, ModelUnavailable, load_detector
 from .recommendations import AUTHORITIES, recommend
 from .scoring import SCORE_NOTE, SEVERITY_BANDS, score_detections
-from .storage import OPEN_STATUSES, STATUSES, Store, now_iso
+from .river import PARAMETERS, Poller
+from .storage import OPEN_STATUSES, STATUSES, Store, now_iso, open_store
 
 WATERWAYS = [
     "Schuylkill River",
@@ -77,13 +79,21 @@ class StatusUpdate(BaseModel):
     changed_by: str | None = Field(None, max_length=200, description="Person or organization making the change")
 
 
-def create_app(detector: Detector | None = None, data_dir: Path | None = None) -> FastAPI:
+def create_app(detector: Detector | None = None, data_dir: Path | None = None,
+               database_url: str | None = None, river_sync: bool = True) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        app.state.store = Store(data_dir or config.DATA_DIR)
+        store = open_store(data_dir or config.DATA_DIR, config.DATABASE_URL if database_url is None else database_url)
+        app.state.store = store
         app.state.detector = detector or load_detector()
+        app.state.river = None
+        if river_sync and store.backend == "tigerdata" and config.RIVER_SYNC_MINUTES > 0:
+            app.state.river = Poller(store, config.RIVER_SYNC_MINUTES)
+            app.state.river.start()
         yield
-        app.state.store.db.close()
+        if app.state.river:
+            app.state.river.stop()
+        store.close()
 
     app = FastAPI(
         title="Philly Water Watch API",
@@ -101,7 +111,8 @@ def create_app(detector: Detector | None = None, data_dir: Path | None = None) -
         det = request.app.state.detector
         model = det.health() if hasattr(det, "health") else {}
         status = "ok" if model.get("reachable", True) else "degraded"
-        return {"status": status, "model": det.name, "model_is_stand_in": det.is_stand_in, "model_status": model}
+        return {"status": status, "model": det.name, "model_is_stand_in": det.is_stand_in, "model_status": model,
+                "database": request.app.state.store.backend}
 
     @app.get("/api/meta")
     def meta():
@@ -264,6 +275,52 @@ def create_app(detector: Detector | None = None, data_dir: Path | None = None) -
         bubbles = request.app.state.store.bubbles(cell_deg, **filters.as_kwargs())
         return {"cell_m": cell_m, "count": len(bubbles),
                 "max_report_count": max((b["report_count"] for b in bubbles), default=0), "bubbles": bubbles}
+
+    # ---- time series (continuous aggregates on Tiger Data) -------------
+
+    @app.get("/api/trends")
+    def trends(request: Request, days: int = Query(90, ge=1, le=3650), waterway: str | None = None):
+        """Daily reports, average score, priority reports and cleanups. Days with no activity are omitted."""
+        start = time.perf_counter()
+        rows = request.app.state.store.trends(days=days, waterway=waterway)
+        return {"database": request.app.state.store.backend, "days": rows,
+                "query_ms": round((time.perf_counter() - start) * 1000, 2)}
+
+    @app.get("/api/river/latest")
+    def river_latest(request: Request):
+        """Latest USGS reading of each parameter at each gauge (needs Tiger Data)."""
+        store = request.app.state.store
+        sites: dict[str, dict] = {}
+        for r in store.river_latest():
+            site = sites.setdefault(r["site_id"], {"site_id": r["site_id"], "name": r["name"],
+                                                   "waterway": r["waterway"], "readings": {}})
+            site["readings"][r["parameter"]] = {"value": r["value"], "time": r["time"]}
+        return {"available": store.backend == "tigerdata", "sites": list(sites.values()),
+                "source": "USGS provisional data"}
+
+    @app.get("/api/river/daily")
+    def river_daily(
+        request: Request,
+        parameter: str = Query("discharge_cfs", description=", ".join(PARAMETERS.values())),
+        days: int = Query(90, ge=1, le=3650),
+        waterway: str | None = None,
+    ):
+        """Daily mean/min/max per gauge, from the hierarchical river_daily continuous aggregate."""
+        if parameter not in PARAMETERS.values():
+            raise HTTPException(422, f"parameter must be one of: {', '.join(PARAMETERS.values())}")
+        store = request.app.state.store
+        return {"available": store.backend == "tigerdata", "parameter": parameter,
+                "series": store.river_series(days, parameter, waterway)}
+
+    @app.get("/api/db")
+    def db_info(request: Request):
+        """Which database is in use and, on Tiger Data, hypertables, compression and aggregate timings."""
+        info = request.app.state.store.db_info()
+        poller = request.app.state.river
+        if poller:
+            info["river_sync"] = {"every_minutes": poller.minutes, "last_result": poller.last_result,
+                                  "last_error": poller.last_error}
+        return info
 
     # ---- front end ----------------------------------------------------
 

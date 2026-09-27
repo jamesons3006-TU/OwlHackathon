@@ -42,6 +42,50 @@ Run the tests with `.\.venv\Scripts\python.exe -m pytest` from the `backend` dir
 
 It calls the API on the same origin when the backend serves it. Opened straight from disk it uses `http://127.0.0.1:8000`; anywhere else, add `?api=http://host:port` to the URL. Set `PWW_FRONTEND_DIR` to serve it from another folder.
 
+## Tiger Data (TimescaleDB)
+
+Set `PWW_DATABASE_URL` and the backend stores everything in [Tiger Data](https://www.tigerdata.com/) instead of the local SQLite file. Photos stay on disk either way.
+
+```powershell
+$env:PWW_DATABASE_URL="postgres://tsdbadmin:<password>@<service>.tsdb.cloud.timescale.com:<port>/tsdb?sslmode=require"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+The schema is created on startup ([`backend/app/tigerstore.py`](backend/app/tigerstore.py)):
+
+| Feature | Where it's used |
+|---|---|
+| **Hypertables** | `reports` (by `created_at`), `status_history` (by `changed_at`), `river_readings` (by `time`) |
+| **Relational tables alongside them** | `detections` (boxes per report), `river_sites` (joined to readings with plain SQL) |
+| **Continuous aggregates** (real-time) | `litter_daily`, `cleanups_daily` feed the "Litter over time" chart; `river_hourly` → `river_daily` is a hierarchical aggregate (an aggregate of an aggregate) |
+| **Compression policies** | `river_readings` after 7 days, `status_history` after 30, `reports` after 90. Old reports can still be updated |
+| **Live metric stream** | USGS river gauges (flow, height, water temperature, turbidity, oxygen, conductance) are polled every 15 minutes with bulk `COPY` inserts ([`backend/app/river.py`](backend/app/river.py)) |
+
+The dashboard's **Litter over time** panel stacks reports and cleanups, average score, and river flow on one time axis, so you can see whether litter follows storms. **Under the hood** shows row counts, chunks, compression ratios and the trend query timed against the aggregate and against the raw rows (`GET /api/db`).
+
+New endpoints: `GET /api/trends?days=90&waterway=`, `GET /api/river/latest`, `GET /api/river/daily?parameter=discharge_cfs&days=90`, `GET /api/db`.
+
+**Commands** (from `backend`, with `PWW_DATABASE_URL` set):
+
+```powershell
+.\.venv\Scripts\python.exe -m app.river --days 30          # backfill 30 days of river readings
+.\.venv\Scripts\python.exe -m app.seed                     # 400 synthetic demo reports over 120 days
+.\.venv\Scripts\python.exe -m app.seed --reports 200000    # load test
+.\.venv\Scripts\python.exe -m app.seed --clear             # remove every synthetic report
+```
+
+Seeded reports are **synthetic**: marked `model_name = "demo-seed"`, with a note and a placeholder image. Don't present them as real sightings.
+
+**Measured locally** (TimescaleDB 2.30 in Docker, 200,000 synthetic reports over a year):
+- Loaded at about 3,000 reports/s.
+- `reports` compressed 11.6× (25.5 MB → 2.2 MB) and `status_history` 5.6× (124 MB → 22 MB).
+- The 90-day trend query took 4.5 ms from the continuous aggregate vs 17 ms scanning raw rows.
+- `/api/trends` for a year answered in about 70 ms end to end.
+
+Settings: `PWW_RIVER_SYNC_MINUTES` (default 15; 0 = off), `PWW_RIVER_BACKFILL_DAYS` (30), `PWW_RIVER_SITES` (comma-separated USGS site numbers), `PWW_USGS_IV_URL`.
+
+Run the tests against TimescaleDB too: start one (`docker run -d -e POSTGRES_PASSWORD=pw -p 5432:5432 timescale/timescaledb:latest-pg17`), then set `PWW_TEST_DATABASE_URL=postgres://postgres:pw@127.0.0.1:5432/postgres` and run pytest. Each test gets its own database.
+
 ## Plugging in the model
 
 The backend never calls a model directly. It goes through a detector chosen by `PWW_DETECTOR`, so the trained model can be connected in whichever form is easiest:
@@ -164,7 +208,7 @@ The score is experimental: the weights are a starting point to tune against real
 
 ## Storage
 
-Everything lives in `backend/data/` (git-ignored): `reports.db` (SQLite), `images/YYYY/MM/<id>.jpg` and `annotated/YYYY/MM/<id>.jpg`. Set `PWW_DATA_DIR` to store it elsewhere. Databases from earlier versions are upgraded automatically on startup.
+Without `PWW_DATABASE_URL` (see Tiger Data above), everything lives in `backend/data/` (git-ignored): `reports.db` (SQLite), `images/YYYY/MM/<id>.jpg` and `annotated/YYYY/MM/<id>.jpg`. Set `PWW_DATA_DIR` to store it elsewhere. Databases from earlier versions are upgraded automatically on startup.
 
 Other settings: `PWW_DETECTOR`, `PWW_FRCNN_MODEL`, `PWW_FRCNN_ARCH`, `PWW_CLASS_NAMES`, `PWW_MODEL_URL`, `PWW_MODEL_API_KEY`, `PWW_MODEL_TIMEOUT` (default 60 s), `PWW_MODEL`, `PWW_CONFIDENCE` (default 0.25), `PWW_MAX_UPLOAD_MB` (default 20), `PWW_CORS_ORIGINS` (default `*`), `PWW_FRONTEND_DIR` (default `frontend/`).
 

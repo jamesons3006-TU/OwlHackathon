@@ -5,7 +5,7 @@ import json
 import math
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -86,24 +86,24 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-class Store:
+def open_store(data_dir: Path, database_url: str = ""):
+    """Tiger Data (TimescaleDB / PostgreSQL) when a database URL is set, else a local SQLite file."""
+    if database_url:
+        from .tigerstore import TigerStore
+        return TigerStore(data_dir, database_url)
+    return Store(data_dir)
+
+
+class ImageStore:
+    """Photos live on disk under data_dir in every backend; only the records move to the database."""
+    backend = "none"
+
     def __init__(self, data_dir: Path):
         self.data_dir = data_dir
         self.images_dir = data_dir / "images"
         self.annotated_dir = data_dir / "annotated"
         self.images_dir.mkdir(parents=True, exist_ok=True)
         self.annotated_dir.mkdir(parents=True, exist_ok=True)
-        self._lock = threading.Lock()
-        self.db = sqlite3.connect(data_dir / "reports.db", check_same_thread=False)
-        self.db.row_factory = sqlite3.Row
-        self.db.execute("PRAGMA foreign_keys = ON")
-        self.db.executescript(SCHEMA)
-        existing = {r["name"] for r in self.db.execute("PRAGMA table_info(reports)")}
-        for col, decl in MIGRATIONS.items():
-            if col not in existing:
-                self.db.execute(f"ALTER TABLE reports ADD COLUMN {col} {decl}")
-        self.db.executescript(INDEXES)
-        self.db.commit()
 
     # ---- images -------------------------------------------------------
 
@@ -126,6 +126,31 @@ class Store:
 
     def abs_path(self, rel: str) -> Path:
         return self.data_dir / rel
+
+    def close(self) -> None:
+        pass
+
+
+class Store(ImageStore):
+    """SQLite store: zero setup, used for local development and tests."""
+    backend = "sqlite"
+
+    def __init__(self, data_dir: Path):
+        super().__init__(data_dir)
+        self._lock = threading.Lock()
+        self.db = sqlite3.connect(data_dir / "reports.db", check_same_thread=False)
+        self.db.row_factory = sqlite3.Row
+        self.db.execute("PRAGMA foreign_keys = ON")
+        self.db.executescript(SCHEMA)
+        existing = {r["name"] for r in self.db.execute("PRAGMA table_info(reports)")}
+        for col, decl in MIGRATIONS.items():
+            if col not in existing:
+                self.db.execute(f"ALTER TABLE reports ADD COLUMN {col} {decl}")
+        self.db.executescript(INDEXES)
+        self.db.commit()
+
+    def close(self) -> None:
+        self.db.close()
 
     # ---- reports ------------------------------------------------------
 
@@ -246,6 +271,35 @@ class Store:
             "by_waterway": by_waterway,
         }
 
+    # ---- time series --------------------------------------------------
+
+    def trends(self, days: int = 90, waterway: str | None = None) -> list[dict]:
+        """Daily litter and cleanup counts (a plain GROUP BY here; continuous aggregates on Tiger Data)."""
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).date().isoformat()
+        extra, args = ("", [since]) if not waterway else (" AND r.waterway = ?", [since, waterway])
+        litter = self.db.execute(
+            "SELECT substr(r.created_at, 1, 10) AS day, COUNT(*) AS reports, SUM(r.score) AS score_sum, "
+            "MAX(r.score) AS max_score, SUM(r.item_count) AS items, "
+            "SUM(r.severity IN ('high', 'severe')) AS priority_reports, SUM(r.hazard_suspected) AS hazard_reports "
+            f"FROM reports r WHERE r.created_at >= ?{extra} GROUP BY day", args
+        ).fetchall()
+        cleaned = self.db.execute(
+            "SELECT substr(h.changed_at, 1, 10) AS day, COUNT(*) AS cleaned FROM status_history h "
+            f"JOIN reports r ON r.id = h.report_id WHERE h.status = 'cleaned' AND h.changed_at >= ?{extra} "
+            "GROUP BY day", args
+        ).fetchall()
+        return merge_days([dict(r) for r in litter], [dict(r) for r in cleaned])
+
+    # River sensor readings and database internals need Tiger Data.
+    def river_latest(self) -> list[dict]:
+        return []
+
+    def river_series(self, days: int, parameter: str, waterway: str | None = None) -> list[dict]:
+        return []
+
+    def db_info(self) -> dict:
+        return {"backend": self.backend, "reports": self.db.execute("SELECT COUNT(*) FROM reports").fetchone()[0]}
+
     def _hydrate(self, row: sqlite3.Row) -> dict:
         report = dict(row)
         report["recommendation"] = json.loads(report.pop("recommendation_json"))
@@ -265,6 +319,26 @@ class Store:
             ).fetchall()
         ]
         return report
+
+
+def merge_days(litter: list[dict], cleaned: list[dict]) -> list[dict]:
+    """Combine daily litter rows and daily cleanup counts into one row per day, oldest first."""
+    days: dict[str, dict] = {}
+    for r in litter:
+        key = r["day"].date().isoformat() if isinstance(r["day"], datetime) else str(r["day"])[:10]
+        n = int(r["reports"])
+        days[key] = {
+            "day": key, "reports": n, "avg_score": round(float(r["score_sum"]) / n, 1) if n else None,
+            "max_score": r["max_score"], "items": int(r["items"] or 0),
+            "priority_reports": int(r["priority_reports"] or 0), "hazard_reports": int(r["hazard_reports"] or 0),
+            "cleaned": 0,
+        }
+    for r in cleaned:
+        key = r["day"].date().isoformat() if isinstance(r["day"], datetime) else str(r["day"])[:10]
+        days.setdefault(key, {"day": key, "reports": 0, "avg_score": None, "max_score": None, "items": 0,
+                              "priority_reports": 0, "hazard_reports": 0, "cleaned": 0})
+        days[key]["cleaned"] = int(r["cleaned"])
+    return [days[k] for k in sorted(days)]
 
 
 def _where(*, waterway=None, severity=None, status=None, min_score=None, since=None, until=None,
