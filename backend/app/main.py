@@ -525,7 +525,7 @@ def create_app(
         )
 
         return {
-            "reports": [
+            "items": [
                 _public(row)
                 for row in rows
             ],
@@ -1116,6 +1116,9 @@ def _public(
         f"/api/reports/{report_id}/image"
         "?annotated=true"
     )
+
+    # Every report carries what the score does and doesn't mean.
+    result["score_note"] = SCORE_NOTE
 
     return result
 
