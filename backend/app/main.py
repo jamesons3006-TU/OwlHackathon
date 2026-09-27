@@ -68,6 +68,7 @@ class ReportFilters:
 class LocationUpdate(BaseModel):
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
+    location_name: str | None = Field(None, max_length=120, description="Place name, e.g. Schuylkill Banks")
 
 
 class StatusUpdate(BaseModel):
@@ -122,6 +123,7 @@ def create_app(detector: Detector | None = None, data_dir: Path | None = None) -
         request: Request,
         image: UploadFile = File(..., description="Photo of the waterway (JPEG/PNG/WebP)"),
         waterway: str | None = Form(None),
+        location_name: str | None = Form(None, max_length=120, description="Place name, e.g. Schuylkill Banks"),
         latitude: float | None = Form(None, ge=-90, le=90),
         longitude: float | None = Form(None, ge=-180, le=180),
         notes: str | None = Form(None, max_length=2000),
@@ -162,6 +164,7 @@ def create_app(detector: Detector | None = None, data_dir: Path | None = None) -
             "created_at": now_iso(),
             "captured_at": exif.get("captured_at"),
             "waterway": waterway,
+            "location_name": location_name,
             "latitude": latitude,
             "longitude": longitude,
             "location_source": location_source,
@@ -205,7 +208,8 @@ def create_app(detector: Detector | None = None, data_dir: Path | None = None) -
         """Set the location the user confirmed (or dragged the pin to) on the map."""
         _require(request, report_id)
         store: Store = request.app.state.store
-        store.set_location(report_id, body.latitude, body.longitude, _in_philly(body.latitude, body.longitude))
+        store.set_location(report_id, body.latitude, body.longitude, _in_philly(body.latitude, body.longitude),
+                           body.location_name.strip() if body.location_name and body.location_name.strip() else None)
         return _public(store.get(report_id), request)
 
     @app.patch("/api/reports/{report_id}/status")
@@ -260,6 +264,15 @@ def create_app(detector: Detector | None = None, data_dir: Path | None = None) -
         bubbles = request.app.state.store.bubbles(cell_deg, **filters.as_kwargs())
         return {"cell_m": cell_m, "count": len(bubbles),
                 "max_report_count": max((b["report_count"] for b in bubbles), default=0), "bubbles": bubbles}
+
+    # ---- front end ----------------------------------------------------
+
+    @app.get("/", include_in_schema=False)
+    def frontend():
+        index = config.FRONTEND_DIR / "index.html"
+        if not index.is_file():
+            raise HTTPException(404, "Front end not found. The API docs are at /docs")
+        return FileResponse(index, media_type="text/html")
 
     # ---- researcher export --------------------------------------------
 
@@ -358,7 +371,7 @@ def _dms(value) -> float:
 
 
 CSV_FIELDS = [
-    "id", "created_at", "captured_at", "waterway", "latitude", "longitude", "location_source", "location_confirmed",
+    "id", "created_at", "captured_at", "waterway", "location_name", "latitude", "longitude", "location_source", "location_confirmed",
     "in_philadelphia", "score", "severity", "item_count", "coverage_pct", "status", "status_updated_at",
     "authority_level", "primary_authority", "hazard_suspected", "model_name", "model_is_stand_in",
     "image_width", "image_height", "reporter", "notes",

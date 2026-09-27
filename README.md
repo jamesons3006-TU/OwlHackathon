@@ -27,9 +27,20 @@ python -m venv .venv
 
 If you are already inside `backend`, omit the first `cd` and keep the same `.venv\Scripts\python.exe -m ...` commands.
 
-Interactive API docs: http://127.0.0.1:8000/docs. For front-end work without a model, set `$env:PWW_DETECTOR="mock"` first.
+Open the dashboard at http://127.0.0.1:8000/ (the backend serves [`frontend/index.html`](frontend/index.html)). Interactive API docs: http://127.0.0.1:8000/docs. For front-end work without a model, set `$env:PWW_DETECTOR="mock"` first.
 
 Run the tests with `.\.venv\Scripts\python.exe -m pytest` from the `backend` directory.
+
+## Front end
+
+[`frontend/index.html`](frontend/index.html) is the Riverwatch dashboard: one HTML file with no build step (Leaflet and the font load from CDNs).
+
+- **Overview:** stats, bubble map / heat map, priority hotspots and the report table.
+- **Report a sighting:** upload a photo, see the boxed detections, score and who to contact, then drop a pin on the map to confirm the location. GPS in the photo places the pin automatically.
+- **Reports / Cleanups:** filter by severity and status, open a report, move it through the cleanup workflow, export CSV or the research ZIP.
+- **My impact:** your reports compared with the community. The "Reporting as" name is sent as `reporter` on uploads.
+
+It calls the API on the same origin when the backend serves it. Opened straight from disk it uses `http://127.0.0.1:8000`; anywhere else, add `?api=http://host:port` to the URL. Set `PWW_FRONTEND_DIR` to serve it from another folder.
 
 ## Plugging in the model
 
@@ -101,11 +112,11 @@ Every report stores `model_name` and `model_is_stand_in`, so researchers can tel
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/api/reports` | Upload a photo (multipart). Returns detections, score, severity and recommendations |
-| `PATCH` | `/api/reports/{id}/location` | Save the location the user confirmed on the map. JSON `{"latitude", "longitude"}` |
+| `PATCH` | `/api/reports/{id}/location` | Save the location the user confirmed on the map. JSON `{"latitude", "longitude", "location_name"}` (name optional) |
 | `GET` | `/api/reports/{id}` | One report, including its status history |
 | `GET` | `/api/reports/{id}/image?annotated=true` | Original photo, or the copy with detection boxes drawn |
 
-`POST /api/reports` form fields: `image` (required), `waterway`, `latitude`, `longitude`, `notes`, `reporter`, `hazard_suspected`. If latitude/longitude are omitted, GPS is read from the photo's EXIF data when present, so the map can open on that spot. `location_source` records where the position came from (`reporter`, `exif` or `map`), and `location_confirmed` becomes `true` once the user confirms it.
+`POST /api/reports` form fields: `image` (required), `waterway`, `location_name`, `latitude`, `longitude`, `notes`, `reporter`, `hazard_suspected`. If latitude/longitude are omitted, GPS is read from the photo's EXIF data when present, so the map can open on that spot. `location_source` records where the position came from (`reporter`, `exif` or `map`), and `location_confirmed` becomes `true` once the user confirms it.
 
 ### Maps
 
@@ -155,7 +166,7 @@ The score is experimental: the weights are a starting point to tune against real
 
 Everything lives in `backend/data/` (git-ignored): `reports.db` (SQLite), `images/YYYY/MM/<id>.jpg` and `annotated/YYYY/MM/<id>.jpg`. Set `PWW_DATA_DIR` to store it elsewhere. Databases from earlier versions are upgraded automatically on startup.
 
-Other settings: `PWW_DETECTOR`, `PWW_FRCNN_MODEL`, `PWW_FRCNN_ARCH`, `PWW_CLASS_NAMES`, `PWW_MODEL_URL`, `PWW_MODEL_API_KEY`, `PWW_MODEL_TIMEOUT` (default 60 s), `PWW_MODEL`, `PWW_CONFIDENCE` (default 0.25), `PWW_MAX_UPLOAD_MB` (default 20), `PWW_CORS_ORIGINS` (default `*`).
+Other settings: `PWW_DETECTOR`, `PWW_FRCNN_MODEL`, `PWW_FRCNN_ARCH`, `PWW_CLASS_NAMES`, `PWW_MODEL_URL`, `PWW_MODEL_API_KEY`, `PWW_MODEL_TIMEOUT` (default 60 s), `PWW_MODEL`, `PWW_CONFIDENCE` (default 0.25), `PWW_MAX_UPLOAD_MB` (default 20), `PWW_CORS_ORIGINS` (default `*`), `PWW_FRONTEND_DIR` (default `frontend/`).
 
 ## Training notebook
 

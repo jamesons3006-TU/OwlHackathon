@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS reports (
     created_at      TEXT NOT NULL,
     captured_at     TEXT,
     waterway        TEXT,
+    location_name   TEXT,
     latitude        REAL,
     longitude       REAL,
     location_source TEXT,
@@ -77,6 +78,7 @@ MIGRATIONS = {
     "location_confirmed": "INTEGER NOT NULL DEFAULT 0",
     "status": "TEXT NOT NULL DEFAULT 'reported'",
     "status_updated_at": "TEXT",
+    "location_name": "TEXT",
 }
 
 
@@ -145,12 +147,13 @@ class Store:
                 (report["id"], "reported", report["created_at"], report.get("reporter"), "Report submitted"),
             )
 
-    def set_location(self, report_id: str, lat: float, lon: float, in_philadelphia: bool) -> None:
+    def set_location(self, report_id: str, lat: float, lon: float, in_philadelphia: bool,
+                     location_name: str | None = None) -> None:
         with self._lock, self.db:
             self.db.execute(
                 "UPDATE reports SET latitude = ?, longitude = ?, location_source = 'map', "
-                "location_confirmed = 1, in_philadelphia = ? WHERE id = ?",
-                (lat, lon, in_philadelphia, report_id),
+                "location_confirmed = 1, in_philadelphia = ?, location_name = COALESCE(?, location_name) WHERE id = ?",
+                (lat, lon, in_philadelphia, location_name, report_id),
             )
 
     def set_status(self, report_id: str, status: str, changed_by: str | None, note: str | None) -> None:

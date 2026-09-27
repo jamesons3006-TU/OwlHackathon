@@ -5,6 +5,7 @@ from pathlib import Path
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 DATA_DIR = Path(os.getenv("PWW_DATA_DIR", BACKEND_DIR / "data"))
+FRONTEND_DIR = Path(os.getenv("PWW_FRONTEND_DIR", BACKEND_DIR.parent / "frontend"))
 MODELS_DIR = Path(os.getenv("PWW_MODELS_DIR", BACKEND_DIR / "models"))
 
 # Which model backend to use (see app/detector.py and README "Plugging in the model"):

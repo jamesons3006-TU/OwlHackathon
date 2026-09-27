@@ -1,0 +1,3908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Riverwatch · Philadelphia waterways</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  >
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400..800&display=swap"
+  >
+
+  <style>
+    /* =========================
+       THEME — EDIT THESE COLORS
+       ========================= */
+    :root {
+      --background: #041a24;
+      --panel: #062431;
+      --input: #0d3546;
+      --text: #e0f1f3;
+      --muted: #87aab8;
+      --green: #2be391;
+      --cyan: #32c8f0;
+      --orange: #ffab20;
+      --red: #ff6b81;
+      --border: #193e50;
+      --font: "Montserrat", Verdana, sans-serif;
+      /* Chart series: you vs. community (validated for colorblind separation on the dark panel) */
+      --you: #16a86a;
+      --crowd: #4d7fe0;
+      color-scheme: dark;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      font: 16px/1.5 var(--font);
+      background:
+        radial-gradient(ellipse at 15% 0%, #103c4d, transparent 55%),
+        linear-gradient(160deg, #082734, #03151e 80%);
+      background-attachment: fixed;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.38;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='130' viewBox='0 0 360 130'%3E%3Cg fill='none' stroke='%23245666' stroke-width='.8'%3E%3Cpath d='M-90 25Q0-6 90 25T270 25T450 25M-90 52Q0 21 90 52T270 52T450 52M-90 79Q0 48 90 79T270 79T450 79M-90 106Q0 75 90 106T270 106T450 106'/%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      background: none;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 3px solid var(--green);
+      outline-offset: 3px;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .icon {
+      width: 21px;
+      height: 21px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    /* =========================
+       SIDEBAR
+       ========================= */
+    .shell {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      width: 222px;
+      padding: 33px 22px;
+      background: #041c26ed;
+      border-right: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 23px;
+      font-weight: 750;
+      letter-spacing: -1px;
+    }
+
+    .brandmark {
+      display: flex;
+      padding: 9px;
+      border-radius: 50%;
+      color: #042b26;
+      background: var(--green);
+      box-shadow: 0 0 0 5px #2be3910c;
+    }
+
+    .edition {
+      margin: 14px 0 45px 4px;
+      color: var(--cyan);
+      font: 600 11px var(--font);
+      letter-spacing: 1.5px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 9px;
+    }
+
+    .nav button {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      padding: 13px 14px;
+      border-radius: 9px;
+      color: var(--muted);
+      text-align: left;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .nav button:hover {
+      background: #0d3544;
+      color: #c7ecef;
+    }
+
+    .nav button.active {
+      color: var(--green);
+      background: #093a34;
+      box-shadow: inset 3px 0 var(--green);
+    }
+
+    .navcount {
+      margin-left: auto;
+      padding: 1px 7px;
+      border-radius: 5px;
+      background: #145345;
+      color: #65edaa;
+      font-size: 12px;
+    }
+
+    .sidebottom {
+      margin-top: auto;
+      padding-top: 60px;
+    }
+
+    .impact {
+      padding: 17px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #082b38;
+      font-size: 14px;
+    }
+
+    .impact .icon {
+      color: var(--green);
+    }
+
+    .impact strong {
+      display: block;
+      margin: 9px 0 4px;
+    }
+
+    .impact p {
+      font-size: 13px;
+    }
+
+    .profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-top: 24px;
+      font-size: 13px;
+    }
+
+    .profile small {
+      display: block;
+      color: var(--muted);
+    }
+
+    .avatar {
+      display: grid;
+      place-items: center;
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      background: #103d4c;
+      color: var(--green);
+      font-weight: bold;
+    }
+
+    /* =========================
+       MAIN LAYOUT
+       ========================= */
+    main {
+      position: relative;
+      width: calc(100% - 222px);
+      max-width: 1700px;
+      margin-left: 222px;
+      padding: 32px 38px 28px;
+    }
+
+    .topline {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 25px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .city {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .city .icon {
+      color: var(--cyan);
+    }
+
+    .demo {
+      padding: 5px 11px;
+      border: 1px solid #1d5a52;
+      border-radius: 20px;
+      background: #0b3b33;
+      color: #40e99b;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .demo.warn {
+      border-color: #6a5220;
+      background: #3a2e0e;
+      color: #ffc454;
+    }
+
+    .demo.bad {
+      border-color: #6a2432;
+      background: #3a1019;
+      color: #ff8fa3;
+    }
+
+    .heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 27px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      font-weight: 650;
+      line-height: 1.2;
+      letter-spacing: -1.2px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+    }
+
+    .primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      padding: 12px 18px;
+      border-radius: 9px;
+      background: var(--green);
+      color: #032f25;
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .primary:hover {
+      background: #53efaa;
+      box-shadow: 0 0 22px #2be39125;
+    }
+
+    .secondary {
+      padding: 9px 14px;
+      border: 1px solid #22556b;
+      border-radius: 8px;
+      background: #0c3243;
+      color: #c6e6eb;
+      font-size: 14px;
+    }
+
+    .secondary:hover {
+      background: #114457;
+    }
+
+    /* =========================
+       SUMMARY CARDS
+       ========================= */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 25px;
+    }
+
+    .stat {
+      padding: 18px 20px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #062431de;
+    }
+
+    .statheader {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .statheader .icon {
+      width: 18px;
+      color: var(--cyan);
+    }
+
+    .statnumber {
+      margin: 10px 0 2px;
+      font-size: 32px;
+      font-weight: 600;
+      line-height: 1.2;
+      letter-spacing: -1px;
+    }
+
+    .statnumber small {
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 400;
+      letter-spacing: 0;
+    }
+
+    .statfoot {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .positive {
+      color: var(--green);
+    }
+
+    .stats .stat:nth-child(3) .statnumber {
+      color: var(--orange);
+    }
+
+    .stats .stat:nth-child(4) .statnumber {
+      color: var(--green);
+    }
+
+    /* =========================
+       MAP AND HOTSPOTS
+       ========================= */
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 20px;
+    }
+
+    .panel {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      background: #062431de;
+    }
+
+    .panelbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 18px 20px;
+    }
+
+    .panelbar h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .panelbar small {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .segmented {
+      display: flex;
+      gap: 2px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: #031b26;
+    }
+
+    .segmented button {
+      padding: 6px 10px;
+      border-radius: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .segmented button.active {
+      background: var(--green);
+      color: #073429;
+      font-weight: 600;
+    }
+
+    .mapwrap {
+      position: relative;
+      height: 425px;
+      background: #0a2937;
+    }
+
+    .map {
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+    }
+
+    .mapnote {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      z-index: 450;
+      max-width: 70%;
+      padding: 8px 11px;
+      border: 1px solid #245064;
+      border-radius: 6px;
+      background: #05232deb;
+      color: #afd0db;
+      font-size: 12px;
+    }
+
+    .mapfooter {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 18px;
+      background: #05212d;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .scale {
+      width: 88px;
+      height: 7px;
+      border-radius: 10px;
+      background: linear-gradient(
+        90deg,
+        var(--green),
+        var(--cyan),
+        var(--orange),
+        var(--red)
+      );
+    }
+
+    .hotspots {
+      padding: 0 17px;
+    }
+
+    .hotspot {
+      display: block;
+      width: 100%;
+      padding: 18px 0;
+      border-top: 1px solid var(--border);
+      text-align: left;
+    }
+
+    .spothead {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .spothead strong {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .spotmeta {
+      margin: 5px 0 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .score {
+      display: inline-block;
+      padding: 3px 8px;
+      border: 1px solid #ffad1544;
+      border-radius: 5px;
+      background: #ffad1515;
+      color: var(--orange);
+      font: 600 13px/1.5 var(--font);
+      white-space: nowrap;
+    }
+
+    .score.medium {
+      border-color: #33bcef44;
+      background: #33bcef13;
+      color: var(--cyan);
+    }
+
+    .score.low {
+      border-color: #2be39144;
+      background: #2be39113;
+      color: var(--green);
+    }
+
+    .score.severe {
+      border-color: #ff6b8144;
+      background: #ff6b8115;
+      color: var(--red);
+    }
+
+    .progress {
+      height: 4px;
+      border-radius: 4px;
+      background: #123746;
+    }
+
+    .progress span {
+      display: block;
+      height: 100%;
+      border-radius: 4px;
+    }
+
+    .callout {
+      margin: 8px 17px 17px;
+      padding: 13px;
+      border: 1px solid #153e4e;
+      border-radius: 8px;
+      background: #082d3b;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    /* =========================
+       REPORT TABLE
+       ========================= */
+    .tablepanel {
+      margin-top: 22px;
+    }
+
+    .tablecontrols {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    select {
+      padding: 8px 10px;
+      border: 1px solid #205268;
+      border-radius: 7px;
+      background: var(--input);
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .tablewrap {
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      padding: 12px 20px;
+      border-block: 1px solid var(--border);
+      background: #051f2b;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    td {
+      padding: 15px 20px;
+      border-bottom: 1px solid #143544;
+      font-size: 13px;
+    }
+
+    tbody tr:hover {
+      background: #0b3040;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .loc {
+      font-weight: 600;
+    }
+
+    .loc small {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 9px;
+      border-radius: 20px;
+      background: #ffa41218;
+      color: #ffb437;
+      font-size: 12px;
+    }
+
+    .badge.clean {
+      background: #2be39119;
+      color: var(--green);
+    }
+
+    .badge.planned {
+      background: #30b9e71a;
+      color: var(--cyan);
+    }
+
+    .badge.muted {
+      background: #87aab81a;
+      color: var(--muted);
+    }
+
+    .rowaction {
+      color: var(--cyan);
+      font-size: 13px;
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+
+    .empty {
+      padding: 35px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 15px;
+      margin-top: 19px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* =========================
+       MODALS AND UPLOAD
+       ========================= */
+    dialog {
+      width: min(620px, calc(100% - 28px));
+      max-height: 90vh;
+      padding: 0;
+      border: 1px solid #235468;
+      border-radius: 18px;
+      background: #05212d;
+      color: var(--text);
+      box-shadow: 0 24px 90px #0007;
+    }
+
+    dialog::backdrop {
+      background: #001019aa;
+      backdrop-filter: blur(4px);
+    }
+
+    .dialoghead {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 23px 26px;
+      border-bottom: 1px solid #214354;
+      background: #082b38;
+    }
+
+    .dialoghead h2 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: -0.6px;
+    }
+
+    .close {
+      padding: 7px;
+      color: var(--muted);
+      font-size: 25px;
+      line-height: 1;
+    }
+
+    .dialogbody {
+      padding: 24px 26px;
+    }
+
+    .steps {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 22px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .steps .current {
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .dropzone {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      min-height: 210px;
+      padding: 25px;
+      border: 1.5px dashed #28627a;
+      border-radius: 12px;
+      background: #0b384c99;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .dropzone.drag {
+      background: #104b50;
+    }
+
+    .dropzone .icon {
+      width: 34px;
+      height: 34px;
+      color: #032f25;
+    }
+
+    .dropzone strong {
+      margin-top: 12px;
+    }
+
+    .dropzone small {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .emptyicon {
+      padding: 16px;
+      margin-bottom: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow:
+        0 0 0 9px #2be39114,
+        0 0 0 23px #2be39106;
+    }
+
+    input[type="file"] {
+      max-width: 100%;
+      margin-top: 15px;
+      font-size: 13px;
+    }
+
+    input[type="file"]::file-selector-button {
+      margin-right: 10px;
+      padding: 7px 10px;
+      border: 1px solid #28566d;
+      border-radius: 6px;
+      background: #0f3e50;
+      color: #b7dce5;
+    }
+
+    label.field {
+      display: block;
+      margin-top: 16px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .field input,
+    .field select {
+      display: block;
+      width: 100%;
+      margin-top: 6px;
+      padding: 10px;
+      border: 1px solid #1d4b60;
+      border-radius: 7px;
+      background: #0d394b;
+      color: var(--text);
+    }
+
+    .field textarea {
+      display: block;
+      width: 100%;
+      min-height: 64px;
+      margin-top: 6px;
+      padding: 10px;
+      border: 1px solid #1d4b60;
+      border-radius: 7px;
+      background: #0d394b;
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      resize: vertical;
+    }
+
+    .check {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 16px;
+      font-size: 13px;
+    }
+
+    .check input {
+      margin-top: 4px;
+      accent-color: var(--orange);
+    }
+
+    .check small {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .pickmap {
+      height: 230px;
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .recs {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border: 1px solid #265366;
+      border-radius: 10px;
+      background: #072835;
+      font-size: 13px;
+    }
+
+    .recs strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .recs ul {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+
+    .recs li + li {
+      margin-top: 4px;
+    }
+
+    .recs a {
+      color: var(--cyan);
+    }
+
+    .recs.hazard {
+      border-color: #6a2432;
+    }
+
+    .history {
+      margin: 16px 0 0;
+      padding: 0;
+      list-style: none;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .history li {
+      padding: 6px 0;
+      border-top: 1px solid #143544;
+    }
+
+    .history b {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .phototoggle {
+      display: block;
+      margin: 8px auto 0;
+    }
+
+    .field input::placeholder {
+      color: #77a0af;
+    }
+
+    .fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .dialogactions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 23px;
+    }
+
+    .notice {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .preview {
+      position: relative;
+      overflow: hidden;
+      min-height: 100px;
+      border-radius: 10px;
+      background: #082d3c;
+    }
+
+    .preview img {
+      display: block;
+      max-width: 100%;
+      max-height: 230px;
+      margin: auto;
+    }
+
+    .resultbox {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      margin-top: 16px;
+      padding: 17px;
+      border: 1px solid #265366;
+      border-radius: 10px;
+      background: #082c37;
+    }
+
+    .resultbox strong {
+      color: var(--orange);
+      font-size: 30px;
+    }
+
+    .resultbox .score {
+      max-width: 140px;
+      text-align: center;
+      white-space: normal;
+    }
+
+    .detailgrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .detailgrid small {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .detailgrid strong {
+      font-size: 16px;
+    }
+
+    .error {
+      margin-top: 12px;
+      color: #ff7695;
+      font-size: 13px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 25px;
+      left: 50%;
+      z-index: 2000;
+      max-width: 90vw;
+      padding: 13px 23px;
+      border: 1px solid #2be39166;
+      border-radius: 10px;
+      background: #0b4038;
+      color: #c9ffe7;
+      box-shadow: 0 6px 30px #0005;
+      font-size: 14px;
+      transform: translateX(-50%);
+    }
+
+    /* =========================
+       MAP APPEARANCE
+       ========================= */
+    .leaflet-container {
+      background: #082936;
+      font-family: var(--font);
+    }
+
+    .leaflet-tooltip {
+      border: 1px solid #2c5c6a;
+      background: #062735;
+      color: #daf4f4;
+    }
+
+    .leaflet-bar a {
+      border-color: #275061 !important;
+      background: #0a3141 !important;
+      color: #a6d4df !important;
+    }
+
+    .leaflet-control-attribution {
+      background: #05222cdb !important;
+      color: #83a9ba !important;
+      font-size: 10px !important;
+    }
+
+    .leaflet-control-attribution a {
+      color: #36b8dd !important;
+    }
+
+    .heatpoint {
+      border-radius: 50%;
+      opacity: 0.85;
+      filter: blur(9px);
+      pointer-events: none;
+    }
+
+    .fallback {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #0a2c3a;
+    }
+
+    .fallback button {
+      position: absolute;
+      border: 2px solid #b4ecd0;
+      border-radius: 50%;
+      box-shadow:
+        0 0 0 8px #2be3910c,
+        0 0 20px #2be39120;
+    }
+
+    .fallbacklabel {
+      position: absolute;
+      top: 20px;
+      right: 18px;
+      padding: 7px 10px;
+      border: 1px solid #205366;
+      border-radius: 6px;
+      background: #05222eed;
+      color: #83bfd3;
+      font-size: 12px;
+    }
+
+    /* =========================
+       MY IMPACT
+       ========================= */
+    .minetop {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 2fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .rankcard {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 20px;
+    }
+
+    .whoami {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .whoami input {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 9px;
+      border: 1px solid #1d4b60;
+      border-radius: 7px;
+      background: #0d394b;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .rankline {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .ranknum {
+      color: var(--green);
+      font-size: 46px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -2px;
+    }
+
+    .ranktext strong {
+      display: block;
+      font-size: 15px;
+    }
+
+    .ranktext small {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .pctbar {
+      position: relative;
+      height: 8px;
+      border-radius: 8px;
+      background: #123746;
+    }
+
+    .pctbar span {
+      position: absolute;
+      inset: 0 auto 0 0;
+      border-radius: 8px;
+      background: var(--you);
+      transition: width .6s ease;
+    }
+
+    .pctlabel {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .badgechip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 9px;
+      border: 1px solid #1d5a52;
+      border-radius: 20px;
+      background: #0b3b33;
+      color: #58ecaa;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badgechip.locked {
+      border-color: var(--border);
+      background: transparent;
+      color: #5f8697;
+    }
+
+    .minestats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .minestats .stat {
+      padding: 16px 18px;
+    }
+
+    .versus {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .versus b {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .up { color: var(--green); }
+    .down { color: var(--orange); }
+
+    .chartgrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .chartbody {
+      padding: 4px 20px 20px;
+    }
+
+    .keys {
+      display: flex;
+      gap: 14px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .key {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+    }
+
+    /* activity columns */
+    .cols {
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      height: 170px;
+      padding-top: 8px;
+      border-bottom: 1px solid #1e4a5c;
+      /* gridlines at the max value and at half of it */
+      background:
+        linear-gradient(#163c4c, #163c4c) 0 8px / 100% 1px no-repeat,
+        linear-gradient(#163c4c, #163c4c) 0 calc(8px + (100% - 8px) / 2) / 100% 1px no-repeat;
+    }
+
+    .col {
+      display: flex;
+      flex: 1;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 2px;
+      height: 100%;
+      border-radius: 4px;
+      cursor: default;
+    }
+
+    .col:hover {
+      background: #0d3445;
+    }
+
+    .col i {
+      display: block;
+      width: 36%;
+      max-width: 12px;
+      min-height: 0;
+      border-radius: 4px 4px 0 0;
+    }
+
+    .col i.zero {
+      height: 2px !important;
+      opacity: .35;
+      border-radius: 2px;
+    }
+
+    .colaxis {
+      display: flex;
+      gap: 4px;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .colaxis span {
+      flex: 1;
+      text-align: center;
+    }
+
+    .ymax {
+      position: absolute;
+      top: -2px;
+      left: 0;
+      color: #5f8697;
+      font-size: 10px;
+    }
+
+    /* horizontal bars */
+    .hbars {
+      display: grid;
+      gap: 9px;
+    }
+
+    .hrow {
+      display: grid;
+      grid-template-columns: 118px minmax(0, 1fr) 42px;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+    }
+
+    .hrow .name {
+      overflow: hidden;
+      color: #c7e2e8;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .hrow.me .name {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .track {
+      height: 10px;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .hrow .val {
+      color: var(--muted);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hrow.me .val {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .pair {
+      display: grid;
+      gap: 3px;
+    }
+
+    .rivername {
+      margin: 10px 0 5px;
+      color: #c7e2e8;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .rivername:first-child {
+      margin-top: 0;
+    }
+
+    .stack {
+      display: flex;
+      gap: 2px;
+      height: 26px;
+    }
+
+    .stack span {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      color: #042b26;
+      font-size: 11px;
+      font-weight: 700;
+      overflow: hidden;
+    }
+
+    .stack span:first-child { border-radius: 4px 0 0 4px; }
+    .stack span:last-child { border-radius: 0 4px 4px 0; }
+
+    .stacklabel {
+      margin: 12px 0 5px;
+      color: #c7e2e8;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .stacklabel:first-child {
+      margin-top: 0;
+    }
+
+    .charttip {
+      position: fixed;
+      z-index: 3000;
+      max-width: 240px;
+      padding: 8px 11px;
+      border: 1px solid #2c5c6a;
+      border-radius: 8px;
+      background: #062735;
+      color: #daf4f4;
+      font-size: 12px;
+      line-height: 1.5;
+      pointer-events: none;
+      box-shadow: 0 8px 24px #0006;
+    }
+
+    .emptymine {
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    .emptymine strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 18px;
+    }
+
+    .emptymine .primary {
+      margin-top: 16px;
+    }
+
+    /* =========================
+       RESPONSIVE LAYOUT
+       ========================= */
+    @media (min-width: 1500px) {
+      .mapwrap {
+        height: 490px;
+      }
+
+      .workspace {
+        grid-template-columns: minmax(0, 1fr) 335px;
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .sidebar {
+        width: 180px;
+        padding: 27px 14px;
+      }
+
+      main {
+        width: calc(100% - 180px);
+        margin-left: 180px;
+        padding: 26px 24px;
+      }
+
+      .workspace {
+        grid-template-columns: minmax(0, 1fr) 255px;
+      }
+
+      .stats {
+        gap: 10px;
+      }
+
+      .stat {
+        padding: 16px 13px;
+      }
+
+      .brand {
+        font-size: 21px;
+      }
+    }
+
+    @media (max-width: 850px) {
+      .shell {
+        display: block;
+      }
+
+      .sidebar {
+        position: relative;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        width: 100%;
+        padding: 16px 20px;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .edition,
+      .sidebottom,
+      .navcount {
+        display: none;
+      }
+
+      .nav {
+        display: flex;
+        gap: 3px;
+      }
+
+      .nav button {
+        gap: 6px;
+        padding: 10px;
+        font-size: 13px;
+      }
+
+      .nav button.active {
+        box-shadow: inset 0 -2px var(--green);
+      }
+
+      main {
+        width: 100%;
+        margin: 0;
+        padding: 24px 20px;
+      }
+
+      .workspace {
+        grid-template-columns: minmax(0, 1fr) 260px;
+      }
+
+      .minetop {
+        grid-template-columns: 1fr;
+      }
+
+      .heading {
+        align-items: flex-start;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+    }
+
+    @media (max-width: 650px) {
+      .sidebar {
+        flex-wrap: wrap;
+      }
+
+      .nav {
+        justify-content: space-between;
+        width: 100%;
+      }
+
+      .nav button {
+        flex: 1;
+        flex-direction: column;
+        justify-content: center;
+        gap: 3px;
+        min-width: 0;
+        padding: 8px 4px;
+        font-size: 11px;
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      .nav .icon {
+        width: 19px;
+        height: 19px;
+      }
+
+      main {
+        padding: 22px 15px;
+      }
+
+      .heading {
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .heading .primary {
+        width: 100%;
+      }
+
+      .stats {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .statnumber {
+        font-size: 29px;
+      }
+
+      .workspace,
+      .minetop,
+      .chartgrid {
+        grid-template-columns: 1fr;
+      }
+
+      .hrow {
+        grid-template-columns: 92px minmax(0, 1fr) 38px;
+      }
+
+      .hotspot {
+        padding: 14px 0;
+      }
+
+      .mapwrap {
+        height: 350px;
+      }
+
+      .panelbar {
+        flex-wrap: wrap;
+        padding: 15px;
+      }
+
+      .mapfooter {
+        flex-wrap: wrap;
+      }
+
+      .tablecontrols {
+        flex-wrap: wrap;
+        justify-content: space-between;
+        width: 100%;
+      }
+
+      .fields {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+
+      .dialogbody {
+        padding: 20px;
+      }
+
+      .detailgrid {
+        gap: 15px;
+      }
+
+      footer {
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Reusable icons -->
+  <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="waves" viewBox="0 0 24 24">
+      <path d="M2 8c4-6 6 6 10 0s6 6 10 0M2 16c4-6 6 6 10 0s6 6 10 0"/>
+    </symbol>
+
+    <symbol id="mapicon" viewBox="0 0 24 24">
+      <path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2ZM9 3v16M15 5v16"/>
+    </symbol>
+
+    <symbol id="listicon" viewBox="0 0 24 24">
+      <rect x="5" y="3" width="14" height="18" rx="2"/>
+      <path d="M9 8h6M9 12h6M9 16h4"/>
+    </symbol>
+
+    <symbol id="leaf" viewBox="0 0 24 24">
+      <path d="M20 3c1 13-5 19-12 15S4 6 20 3ZM5 21 15 10"/>
+    </symbol>
+
+    <symbol id="pin" viewBox="0 0 24 24">
+      <path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/>
+      <circle cx="12" cy="10" r="2"/>
+    </symbol>
+
+    <symbol id="plus" viewBox="0 0 24 24">
+      <path d="M12 5v14M5 12h14"/>
+    </symbol>
+
+    <symbol id="upload" viewBox="0 0 24 24">
+      <path d="M12 16V3m-5 5 5-5 5 5M3 16v5h18v-5"/>
+    </symbol>
+
+    <symbol id="activity" viewBox="0 0 24 24">
+      <path d="M2 12h5l3-8 4 16 3-8h5"/>
+    </symbol>
+
+    <symbol id="usericon" viewBox="0 0 24 24">
+      <circle cx="12" cy="8" r="4"/>
+      <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>
+    </symbol>
+
+    <symbol id="trophy" viewBox="0 0 24 24">
+      <path d="M8 4h8v5a4 4 0 0 1-8 0ZM8 6H4c0 3 2 5 4 5M16 6h4c0 3-2 5-4 5M12 13v4M8 21h8M9 17h6"/>
+    </symbol>
+  </svg>
+
+  <div class="shell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brandmark">
+          <svg class="icon"><use href="#waves"/></svg>
+        </span>
+        Riverwatch
+      </div>
+
+      <div class="edition">PHILADELPHIA WATERWAYS</div>
+
+      <nav class="nav" aria-label="Main navigation">
+        <button class="active" data-view="overview">
+          <svg class="icon"><use href="#mapicon"/></svg>
+          Overview
+        </button>
+
+        <button data-view="reports">
+          <svg class="icon"><use href="#listicon"/></svg>
+          Reports
+          <span class="navcount" id="navCount">0</span>
+        </button>
+
+        <button data-view="cleanup">
+          <svg class="icon"><use href="#leaf"/></svg>
+          Cleanups
+        </button>
+
+        <button data-view="mine">
+          <svg class="icon"><use href="#usericon"/></svg>
+          My impact
+        </button>
+      </nav>
+
+      <div class="sidebottom">
+        <div class="impact">
+          <svg class="icon"><use href="#waves"/></svg>
+          <strong>Small reports. Real change.</strong>
+          <p>A clearer picture of our rivers starts with what you see.</p>
+        </div>
+
+        <div class="profile">
+          <span class="avatar" id="avatar">YO</span>
+          <div>
+            <span id="profileName">You</span>
+            <small>Philadelphia, PA</small>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main>
+      <div class="topline">
+        <span class="city">
+          <svg class="icon"><use href="#pin"/></svg>
+          Philadelphia, Pennsylvania
+        </span>
+        <span class="demo" id="apiStatus">Connecting…</span>
+      </div>
+
+      <header class="heading">
+        <div>
+          <h1 id="pageTitle">A clearer view of our waterways.</h1>
+          <p class="subtitle" id="pageSubtitle">
+            Spot litter. Map the impact. Make a difference.
+          </p>
+        </div>
+
+        <button class="primary" id="newReport">
+          <svg class="icon"><use href="#plus"/></svg>
+          Report a sighting
+        </button>
+      </header>
+
+      <section class="stats" id="communityStats" aria-label="Report summary">
+        <div class="stat">
+          <div class="statheader">
+            Community reports
+            <svg class="icon"><use href="#listicon"/></svg>
+          </div>
+          <div class="statnumber" id="totalStat">–</div>
+          <div class="statfoot">Across Philadelphia waterways</div>
+        </div>
+
+        <div class="stat">
+          <div class="statheader">
+            Average litter score
+            <svg class="icon"><use href="#activity"/></svg>
+          </div>
+          <div class="statnumber">
+            <span id="scoreStat">–</span>
+            <small>/ 100</small>
+          </div>
+          <div class="statfoot">Experimental visual assessment</div>
+        </div>
+
+        <div class="stat">
+          <div class="statheader">
+            High-priority reports
+            <svg class="icon"><use href="#pin"/></svg>
+          </div>
+          <div class="statnumber" id="priorityStat">–</div>
+          <div class="statfoot">High or severe · still open</div>
+        </div>
+
+        <div class="stat">
+          <div class="statheader">
+            Sites cleaned
+            <svg class="icon"><use href="#leaf"/></svg>
+          </div>
+          <div class="statnumber" id="cleanStat">–</div>
+          <div class="statfoot positive">
+            Every cleanup makes a difference
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace" id="mapSection">
+        <div class="panel">
+          <div class="panelbar">
+            <div>
+              <h2>Waterway activity</h2>
+              <small>Where our community is seeing litter</small>
+            </div>
+
+            <div class="segmented" aria-label="Map layer">
+              <button
+                class="active"
+                data-layer="bubbles"
+                aria-pressed="true"
+              >
+                Bubble map
+              </button>
+              <button data-layer="heat" aria-pressed="false">
+                Heat map
+              </button>
+            </div>
+          </div>
+
+          <div class="mapwrap">
+            <div
+              id="map"
+              class="map"
+              aria-label="Philadelphia report locations"
+            ></div>
+
+            <div class="mapnote" id="mapNote">
+              Bubble size = reports · color = average score
+            </div>
+          </div>
+
+          <div class="mapfooter">
+            <span class="legend">
+              Low
+              <span class="scale"></span>
+              High severity
+            </span>
+            <span id="mapCount">Loading reports…</span>
+          </div>
+        </div>
+
+        <aside class="panel">
+          <div class="panelbar">
+            <h2>Priority hotspots</h2>
+            <svg class="icon"><use href="#activity"/></svg>
+          </div>
+
+          <div class="hotspots" id="hotspots"></div>
+
+          <div class="callout">
+            Scores reflect visible litter only. They don’t measure
+            chemical pollution or water safety.
+          </div>
+        </aside>
+      </section>
+
+      <!-- My impact -->
+      <section id="mineSection" class="hidden" aria-label="My impact">
+        <div class="minetop">
+          <div class="panel rankcard">
+            <label class="whoami">
+              Reporting as
+              <input id="userName" maxlength="30" autocomplete="nickname">
+            </label>
+
+            <div class="rankline">
+              <span class="ranknum" id="rankNum">#–</span>
+              <div class="ranktext">
+                <strong id="rankTitle">Community rank</strong>
+                <small id="rankSub">by impact points (sum of litter scores)</small>
+              </div>
+            </div>
+
+            <div>
+              <div class="pctbar"><span id="pctFill" style="width:0"></span></div>
+              <div class="pctlabel" id="pctLabel"></div>
+            </div>
+
+            <div class="badges" id="badges"></div>
+          </div>
+
+          <div class="minestats" id="mineStats"></div>
+        </div>
+
+        <div class="chartgrid" id="mineCharts">
+          <div class="panel">
+            <div class="panelbar">
+              <div>
+                <h2>Activity, last 14 days</h2>
+                <small>Reports per day</small>
+              </div>
+              <div class="keys">
+                <span class="key"><span class="swatch" style="background:var(--you)"></span>You</span>
+                <span class="key"><span class="swatch" style="background:var(--crowd)"></span>Community</span>
+              </div>
+            </div>
+            <div class="chartbody" id="activityChart"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panelbar">
+              <div>
+                <h2>Leaderboard</h2>
+                <small>Impact points · hover for report counts</small>
+              </div>
+              <svg class="icon" style="color:var(--green)"><use href="#trophy"/></svg>
+            </div>
+            <div class="chartbody"><div class="hbars" id="leaderChart"></div></div>
+          </div>
+
+          <div class="panel">
+            <div class="panelbar">
+              <div>
+                <h2>Where you report</h2>
+                <small>Share of reports by waterway</small>
+              </div>
+              <div class="keys">
+                <span class="key"><span class="swatch" style="background:var(--you)"></span>You</span>
+                <span class="key"><span class="swatch" style="background:var(--crowd)"></span>Community</span>
+              </div>
+            </div>
+            <div class="chartbody" id="riverChart"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panelbar">
+              <div>
+                <h2>Severity mix</h2>
+                <small>How serious the litter you find is</small>
+              </div>
+              <div class="keys">
+                <span class="key"><span class="swatch" style="background:var(--green)"></span>Low</span>
+                <span class="key"><span class="swatch" style="background:var(--cyan)"></span>Moderate</span>
+                <span class="key"><span class="swatch" style="background:var(--orange)"></span>High</span>
+                <span class="key"><span class="swatch" style="background:var(--red)"></span>Severe</span>
+              </div>
+            </div>
+            <div class="chartbody" id="severityChart"></div>
+          </div>
+        </div>
+
+        <div class="panel emptymine hidden" id="emptyMine">
+          <strong>You haven’t reported anything yet.</strong>
+          <p>File your first sighting to see how you stack up against the community.</p>
+          <button class="primary" data-new-report>
+            <svg class="icon"><use href="#plus"/></svg>
+            Report a sighting
+          </button>
+        </div>
+      </section>
+
+      <section class="panel tablepanel">
+        <div class="panelbar">
+          <div>
+            <h2 id="tableTitle">Recent reports</h2>
+            <small id="tableSubtitle">
+              A little attention goes a long way.
+            </small>
+          </div>
+
+          <div class="tablecontrols">
+            <select id="severityFilter" aria-label="Filter severity">
+              <option value="all">All severities</option>
+              <option value="severe">Severe · 75–100</option>
+              <option value="high">High · 50–74</option>
+              <option value="moderate">Moderate · 25–49</option>
+              <option value="low">Low · 1–24</option>
+              <option value="none">None · 0</option>
+            </select>
+
+            <select id="statusFilter" aria-label="Filter status">
+              <option value="all">All statuses</option>
+              <option value="open">Open (not cleaned or dismissed)</option>
+              <option value="reported">Needs cleanup</option>
+              <option value="verified">Verified</option>
+              <option value="scheduled">Planned</option>
+              <option value="in_progress">In progress</option>
+              <option value="cleaned">Cleaned</option>
+              <option value="dismissed">Dismissed</option>
+            </select>
+
+            <button class="rowaction" id="export" title="Reports matching the severity and status filters">Export CSV</button>
+            <button class="rowaction" id="exportZip" title="Photos, annotated photos, CSV, JSON and COCO labels">Research ZIP</button>
+          </div>
+        </div>
+
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Location</th>
+                <th>Litter score</th>
+                <th>Items detected</th>
+                <th>Reported</th>
+                <th>Status</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="reportRows"></tbody>
+          </table>
+        </div>
+
+        <div class="empty hidden" id="empty">
+          No reports match these filters.
+        </div>
+      </section>
+
+      <footer>
+        <span>Riverwatch · For healthier waterways</span>
+        <span>Live data from the Philly Water Watch API</span>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Upload/report modal -->
+  <dialog id="reportDialog" aria-labelledby="reportDialogTitle">
+    <div class="dialoghead">
+      <h2 id="reportDialogTitle">Report a sighting</h2>
+      <button
+        class="close"
+        aria-label="Close dialog"
+        data-close="reportDialog"
+      >×</button>
+    </div>
+
+    <div class="dialogbody">
+      <div class="steps">
+        <span class="current" id="step1">01 / Photo</span>
+        <span id="step2">02 / Review & location</span>
+      </div>
+
+      <div id="uploadStep">
+        <label class="dropzone" id="dropzone" for="photoInput">
+          <span class="emptyicon">
+            <svg class="icon"><use href="#upload"/></svg>
+          </span>
+          <strong>Give your waterway a closer look.</strong>
+          <span>Choose a photo or drop it here</span>
+          <small>JPG, PNG or WebP · up to 20 MB</small>
+        </label>
+
+        <input
+          id="photoInput"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          aria-label="Select waterway photo"
+        >
+
+        <label class="field">
+          Waterway
+          <select id="waterway">
+            <option value="">Choose a waterway (optional)</option>
+          </select>
+        </label>
+
+        <label class="field">
+          Notes <span style="font-weight:400;color:var(--muted)">(optional)</span>
+          <textarea id="notes" maxlength="2000" placeholder="Anything the photo doesn’t show"></textarea>
+        </label>
+
+        <label class="check">
+          <input type="checkbox" id="hazard">
+          <span>
+            I also see signs of a hazard
+            <small>Oil sheen, chemical smell, sewage or dead fish. This doesn’t change the litter score; it puts emergency contacts first.</small>
+          </span>
+        </label>
+
+        <p class="notice">
+          Your photo is sent to the litter-detection model and saved with
+          the report for cleanup planning and research.
+        </p>
+
+        <div class="dialogactions">
+          <button class="primary" id="analyze" disabled>
+            Analyze photo
+          </button>
+        </div>
+      </div>
+
+      <form id="resultStep" class="hidden">
+        <div class="preview hidden" id="preview">
+          <img id="previewImage" alt="Your uploaded waterway photo">
+        </div>
+
+        <div class="resultbox">
+          <div>
+            <strong id="resultScore">
+              –
+            </strong>
+            <p style="font-size:13px" id="resultSeverity"></p>
+          </div>
+          <span class="score" id="resultItems"></span>
+        </div>
+
+        <p class="notice" id="resultNote"></p>
+
+        <div class="recs" id="resultRecs"></div>
+
+        <label class="field">
+          Location name
+          <input
+            id="locationName"
+            placeholder="e.g. Schuylkill Banks"
+            required
+            maxlength="120"
+          >
+        </label>
+
+        <div id="pickMap" class="pickmap" aria-label="Click or drag the pin to where the photo was taken"></div>
+
+        <div class="fields">
+          <label class="field">
+            Latitude
+            <input
+              id="latitude"
+              type="number"
+              step="any"
+              min="-90"
+              max="90"
+              value="39.9526"
+              required
+            >
+          </label>
+
+          <label class="field">
+            Longitude
+            <input
+              id="longitude"
+              type="number"
+              step="any"
+              min="-180"
+              max="180"
+              value="-75.1805"
+              required
+            >
+          </label>
+        </div>
+
+        <button
+          type="button"
+          class="rowaction"
+          id="locate"
+          style="margin-top:12px"
+        >
+          Use my current location
+        </button>
+
+        <p class="notice" id="locationNote">
+          Your report is saved. Click the map or drag the pin to where the
+          photo was taken, then confirm so it shows up on the map.
+        </p>
+
+        <div class="dialogactions">
+          <button type="button" class="secondary" id="back">
+            Skip for now
+          </button>
+          <button class="primary" type="submit" id="confirmLocation">
+            Confirm location
+          </button>
+        </div>
+      </form>
+
+      <p id="uploadError" class="error" role="alert"></p>
+    </div>
+  </dialog>
+
+  <!-- Report detail modal -->
+  <dialog id="detailDialog" aria-labelledby="detailTitle">
+    <div class="dialoghead">
+      <h2 id="detailTitle">Report details</h2>
+      <button
+        class="close"
+        aria-label="Close details"
+        data-close="detailDialog"
+      >×</button>
+    </div>
+
+    <div class="dialogbody">
+      <div id="detailPhoto" class="preview hidden"></div>
+      <button type="button" class="rowaction phototoggle hidden" id="photoToggle">Show original photo</button>
+      <div id="detailData" class="detailgrid"></div>
+      <div id="detailRecs" class="recs"></div>
+
+      <label class="field">
+        Cleanup status
+        <select id="detailStatus"></select>
+      </label>
+
+      <label class="field">
+        Note <span style="font-weight:400;color:var(--muted)">(optional)</span>
+        <input id="statusNote" maxlength="1000" placeholder="e.g. Cleanup booked for Saturday">
+      </label>
+
+      <ul class="history" id="detailHistory"></ul>
+
+      <p class="notice" id="detailNote">
+        Visible litter only, not a water-quality assessment.
+      </p>
+
+      <div class="dialogactions">
+        <button class="primary" id="saveStatus">Save status</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast hidden" id="toast" role="status"></div>
+  <div class="charttip hidden" id="chartTip" role="tooltip"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    /* =========================
+       HELPERS
+       ========================= */
+    const $ = id => document.getElementById(id);
+
+    const escapeHTML = value => String(value ?? "").replace(
+      /[&<>"']/g,
+      character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[character]
+    );
+
+    /* =========================
+       API
+       Served by the backend: same origin.
+       Opened as a file: the backend on port 8000.
+       Anything else: add ?api=http://host:port to the page URL.
+       ========================= */
+    const API = (() => {
+      const fromQuery = new URLSearchParams(location.search).get("api");
+      if (fromQuery) return fromQuery.replace(/\/+$/, "");
+      return location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
+    })();
+
+    async function api(path, options = {}) {
+      let response;
+
+      try {
+        response = await fetch(API + path, options);
+      } catch {
+        throw new Error(
+          `Can't reach the API at ${API || location.origin}. Is the backend running?`
+        );
+      }
+
+      if (!response.ok) {
+        let detail = "";
+        try {
+          const body = await response.json();
+          detail = typeof body.detail === "string"
+            ? body.detail
+            : body.detail?.[0]?.msg || "";
+        } catch {
+          // Not JSON; fall back to the status code.
+        }
+        throw new Error(detail || `Request failed (${response.status})`);
+      }
+
+      return response.json();
+    }
+
+    const sendJSON = (method, body) => ({
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    /* =========================
+       SEVERITY AND STATUS
+       Bands come from backend/app/scoring.py:
+       0 none, 1–24 low, 25–49 moderate, 50–74 high, 75–100 severe.
+       ========================= */
+    const SEVERITY_COLOR = {
+      none: "#2be391",
+      low: "#2be391",
+      moderate: "#2fc5ee",
+      high: "#ffab20",
+      severe: "#ff6b81"
+    };
+
+    const SEVERITY_LABEL = {
+      none: "No",
+      low: "Low",
+      moderate: "Moderate",
+      high: "High",
+      severe: "Severe"
+    };
+
+    const SCORE_CLASS = {
+      none: "low",
+      low: "low",
+      moderate: "medium",
+      high: "",
+      severe: "severe"
+    };
+
+    const STATUS_LABEL = {
+      reported: "Needs cleanup",
+      verified: "Verified",
+      scheduled: "Planned",
+      in_progress: "In progress",
+      cleaned: "Cleaned",
+      dismissed: "Dismissed"
+    };
+
+    const STATUS_BADGE = {
+      reported: "",
+      verified: "",
+      scheduled: "planned",
+      in_progress: "planned",
+      cleaned: "clean",
+      dismissed: "muted"
+    };
+
+    const OPEN_STATUSES = ["reported", "verified", "scheduled", "in_progress"];
+    const PRIORITY = ["high", "severe"];
+    const PHILLY_CENTER = [39.9526, -75.1652];
+
+    const WATERWAYS = [
+      "Schuylkill River",
+      "Delaware River",
+      "Wissahickon Creek",
+      "Pennypack Creek",
+      "Cobbs Creek",
+      "Tacony-Frankford Creek",
+      "Poquessing Creek",
+      "Darby Creek",
+      "Other"
+    ];
+
+    const scoreBadge = report => `
+      <span class="score ${SCORE_CLASS[report.severity] ?? ""}">
+        ${report.score} / 100
+      </span>
+    `;
+
+    const itemsText = n => `${n} item${n === 1 ? "" : "s"}`;
+
+    // API report -> the fields the dashboard displays.
+    const toView = report => ({
+      ...report,
+      name: report.location_name || report.waterway || "Unnamed location",
+      river: report.waterway || "Unspecified waterway",
+      hasLocation: report.latitude != null && report.longitude != null
+    });
+
+    /* =========================
+       APPLICATION STATE
+       ========================= */
+    const USER_KEY = "riverwatch-user";
+
+    let reports = [];
+    let loadError = "";
+    let loaded = false;
+    let currentView = "overview";
+    let currentLayer = "bubbles";
+    let map = null;
+    let markers = null;
+    let mapFeatures = [];
+    let mapRequest = 0;
+    let tileFailures = 0;
+    let pinMap = null;
+    let pinMarker = null;
+    let photoFile = null;
+    let photoURL = "";
+    let draft = null;
+    let selectedReportId = null;
+    let showOriginal = false;
+    let toastTimer = null;
+    let lastRefresh = 0;
+    let currentUser = "You";
+
+    try {
+      currentUser = (localStorage.getItem(USER_KEY) || "You").slice(0, 30) || "You";
+    } catch {
+      // Keep the default name when storage is unavailable.
+    }
+
+    function showToast(message) {
+      $("toast").textContent = message;
+      $("toast").classList.remove("hidden");
+
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        $("toast").classList.add("hidden");
+      }, 4200);
+    }
+
+    /* =========================
+       LOADING
+       ========================= */
+    async function loadReports() {
+      const all = [];
+
+      for (let offset = 0; ; offset += 500) {
+        const page = await api(
+          `/api/reports?sort=newest&limit=500&offset=${offset}`
+        );
+        all.push(...page.items);
+        if (all.length >= page.total || !page.items.length) break;
+      }
+
+      reports = all.map(toView);
+    }
+
+    async function refresh() {
+      lastRefresh = Date.now();
+
+      try {
+        await loadReports();
+        loadError = "";
+      } catch (error) {
+        loadError = error.message;
+        showToast(error.message);
+      }
+
+      loaded = true;
+      render();
+    }
+
+    async function checkHealth() {
+      const pill = $("apiStatus");
+
+      try {
+        const health = await api("/api/health");
+        const ok = health.status === "ok";
+
+        pill.textContent = ok
+          ? `Model: ${health.model}${health.model_is_stand_in ? " (stand-in)" : ""}`
+          : "Model unavailable";
+        pill.className = "demo" + (ok && !health.model_is_stand_in ? "" : " warn");
+        pill.title = !ok
+          ? "The detection model isn't responding, so new photos can't be analyzed."
+          : health.model_is_stand_in
+            ? "Scores come from a stand-in model, not the trained litter detector."
+            : "";
+      } catch {
+        pill.textContent = "API offline";
+        pill.className = "demo bad";
+        pill.title = `No response from ${API || location.origin}`;
+      }
+    }
+
+    async function loadMeta() {
+      let waterways = WATERWAYS;
+
+      try {
+        const meta = await api("/api/meta");
+        if (Array.isArray(meta.waterways) && meta.waterways.length) {
+          waterways = meta.waterways;
+        }
+      } catch {
+        // The built-in list matches the backend's.
+      }
+
+      $("waterway").insertAdjacentHTML(
+        "beforeend",
+        waterways.map(name =>
+          `<option>${escapeHTML(name)}</option>`).join("")
+      );
+    }
+
+    /* =========================
+       FILTERS
+       ========================= */
+    function filters() {
+      return {
+        severity: $("severityFilter").value,
+        status: $("statusFilter").value
+      };
+    }
+
+    function matchesStatus(report, status) {
+      if (status === "all") return true;
+      if (status === "open") return OPEN_STATUSES.includes(report.status);
+      return report.status === status;
+    }
+
+    function filteredReports() {
+      const { severity, status } = filters();
+
+      return reports
+        .filter(report =>
+          (currentView !== "mine" || report.reporter === currentUser) &&
+          (severity === "all" || report.severity === severity) &&
+          matchesStatus(report, status)
+        )
+        .sort((a, b) =>
+          currentView === "cleanup"
+            ? b.score - a.score || Date.parse(b.created_at) - Date.parse(a.created_at)
+            : Date.parse(b.created_at) - Date.parse(a.created_at)
+        );
+    }
+
+    // The same filters as query parameters, for the map layers and exports.
+    function filterQuery() {
+      const { severity, status } = filters();
+      const params = new URLSearchParams();
+
+      if (severity !== "all") params.append("severity", severity);
+      if (status !== "all") params.append("status", status);
+
+      return params;
+    }
+
+    /* =========================
+       RENDER DASHBOARD
+       ========================= */
+    function render() {
+      const visibleReports = filteredReports();
+
+      $("totalStat").textContent = loaded ? reports.length : "–";
+      $("navCount").textContent = reports.length;
+
+      $("scoreStat").textContent = reports.length
+        ? Math.round(
+            reports.reduce((sum, report) => sum + report.score, 0) /
+            reports.length
+          )
+        : loaded ? 0 : "–";
+
+      $("priorityStat").textContent = loaded
+        ? reports.filter(report =>
+            PRIORITY.includes(report.severity) &&
+            OPEN_STATUSES.includes(report.status)
+          ).length
+        : "–";
+
+      $("cleanStat").textContent = loaded
+        ? reports.filter(report => report.status === "cleaned").length
+        : "–";
+
+      $("reportRows").innerHTML = visibleReports.map(report => {
+        const date = new Date(report.created_at).toLocaleDateString(
+          "en-US",
+          { month: "short", day: "numeric" }
+        );
+
+        return `
+          <tr>
+            <td class="loc">
+              ${escapeHTML(report.name)}
+              <small>${escapeHTML(report.river)}</small>
+            </td>
+            <td>${scoreBadge(report)}</td>
+            <td>${itemsText(report.item_count)}</td>
+            <td>${date}</td>
+            <td>
+              <span class="badge ${STATUS_BADGE[report.status] ?? ""}">
+                ${escapeHTML(STATUS_LABEL[report.status] ?? report.status)}
+              </span>
+            </td>
+            <td>
+              <button
+                class="rowaction"
+                data-detail="${escapeHTML(report.id)}"
+              >View →</button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      $("empty").textContent = loadError
+        ? loadError
+        : !loaded
+          ? "Loading reports…"
+          : !reports.length
+            ? "No reports yet. Be the first to report a sighting."
+            : currentView === "mine" && !reports.some(r => r.reporter === currentUser)
+              ? "You haven’t filed any reports yet."
+              : "No reports match these filters.";
+
+      $("empty").classList.toggle(
+        "hidden",
+        visibleReports.length > 0
+      );
+
+      const priorities = reports
+        .filter(report => OPEN_STATUSES.includes(report.status))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+
+      $("hotspots").innerHTML = priorities.map((report, index) => `
+        <button class="hotspot" data-detail="${escapeHTML(report.id)}">
+          <div class="spothead">
+            <strong>
+              ${index + 1}. ${escapeHTML(report.name)}
+            </strong>
+            ${scoreBadge(report)}
+          </div>
+
+          <div class="spotmeta">
+            ${escapeHTML(report.river)} · ${itemsText(report.item_count)}
+          </div>
+
+          <div class="progress">
+            <span style="
+              width:${report.score}%;
+              background:${SEVERITY_COLOR[report.severity]}
+            "></span>
+          </div>
+        </button>
+      `).join("") || `<div class="empty">${
+        !loaded ? "Loading…" : reports.length ? "All sites cleaned." : "No reports yet."
+      }</div>`;
+
+      renderMap();
+      if (currentView === "mine") renderMine();
+    }
+
+    /* =========================
+       MY IMPACT
+       ========================= */
+    const DAY = 86400000;
+    const pct = (part, whole) => whole ? Math.round((part / whole) * 100) : 0;
+    const avg = list => list.length
+      ? Math.round(list.reduce((sum, r) => sum + r.score, 0) / list.length)
+      : 0;
+    const initials = name => name.split(/\s+/).filter(Boolean)
+      .map(word => word[0]).join("").slice(0, 2).toUpperCase() || "YO";
+
+    // Anonymous reports have no one to rank, so they stay off the board.
+    function leaderboard() {
+      const people = new Map();
+
+      reports.filter(report => report.reporter).forEach(report => {
+        const person = people.get(report.reporter) ||
+          { name: report.reporter, points: 0, count: 0, items: 0 };
+        person.points += report.score;
+        person.count += 1;
+        person.items += report.item_count;
+        people.set(report.reporter, person);
+      });
+
+      return [...people.values()].sort((a, b) =>
+        b.points - a.points || b.count - a.count || a.name.localeCompare(b.name)
+      );
+    }
+
+    function versus(mine, theirs, unit, higherIsGood = true) {
+      if (!theirs) return `<div class="versus">Community avg <b>–</b></div>`;
+      const diff = mine - theirs;
+      const good = higherIsGood ? diff >= 0 : diff <= 0;
+      const arrow = diff === 0 ? "=" : diff > 0 ? "▲" : "▼";
+      return `
+        <div class="versus">
+          <span class="${diff === 0 ? "" : good ? "up" : "down"}">${arrow}</span>
+          Community avg <b>${theirs}${unit}</b>
+        </div>`;
+    }
+
+    function renderMine() {
+      const mine = reports.filter(report => report.reporter === currentUser);
+      const board = leaderboard();
+      const others = board.filter(person => person.name !== currentUser);
+      const hasMine = mine.length > 0;
+
+      $("mineCharts").classList.toggle("hidden", !hasMine);
+      $("emptyMine").classList.toggle("hidden", hasMine);
+
+      /* rank */
+      const rank = board.findIndex(person => person.name === currentUser) + 1;
+      const ahead = others.filter(person =>
+        person.points < (board[rank - 1]?.points ?? 0)).length;
+      const share = pct(ahead, others.length);
+
+      $("rankNum").textContent = hasMine ? `#${rank}` : "#–";
+      $("rankTitle").textContent = hasMine
+        ? `of ${board.length} reporters`
+        : "Not ranked yet";
+      $("pctFill").style.width = `${hasMine ? share : 0}%`;
+      $("pctLabel").textContent = hasMine
+        ? `Ahead of ${ahead} of ${others.length} other reporters (${share}%)`
+        : "Your first report puts you on the board.";
+
+      /* badges */
+      const rivers = new Set(mine.filter(r => r.waterway).map(r => r.waterway));
+      const badges = [
+        ["First report", mine.length >= 1, "File any report"],
+        [`Regular · ${Math.min(mine.length, 5)}/5`, mine.length >= 5, "File 5 reports"],
+        ["Hotspot hunter", mine.some(r => PRIORITY.includes(r.severity)),
+          "Report a high-severity site (score 50+)"],
+        ["Two-river watcher", rivers.size >= 2, "Report on two waterways"],
+        ["Cleanup catalyst", mine.some(r => r.status === "cleaned"),
+          "Have one of your sites cleaned"]
+      ];
+      $("badges").innerHTML = badges.map(([label, earned, how]) => `
+        <span class="badgechip ${earned ? "" : "locked"}"
+          data-tip="${escapeHTML(earned ? "Earned" : "Locked · " + how)}">
+          ${earned ? "★" : "○"} ${label}
+        </span>`).join("");
+
+      /* stat cards */
+      const perPerson = key => others.length
+        ? Math.round(others.reduce((sum, p) => sum + p[key], 0) / others.length)
+        : 0;
+      const othersReports = reports.filter(r => r.reporter !== currentUser);
+      const myClean = pct(mine.filter(r => r.status === "cleaned").length, mine.length);
+      const crowdClean = pct(
+        othersReports.filter(r => r.status === "cleaned").length,
+        othersReports.length
+      );
+
+      const cards = [
+        ["Reports filed", mine.length, "", perPerson("count"), "", "listicon"],
+        ["Items spotted", mine.reduce((sum, r) => sum + r.item_count, 0), "",
+          perPerson("items"), "", "activity"],
+        ["Avg litter score", avg(mine), "<small>/ 100</small>",
+          avg(othersReports), "", "pin"],
+        ["Sites cleaned", `${myClean}%`, "", `${crowdClean}`, "%", "leaf"]
+      ];
+      $("mineStats").innerHTML = cards.map(([label, value, suffix, theirs, unit, icon]) => `
+        <div class="stat">
+          <div class="statheader">
+            ${label}
+            <svg class="icon"><use href="#${icon}"/></svg>
+          </div>
+          <div class="statnumber">${value} ${suffix}</div>
+          ${versus(parseInt(value, 10), parseInt(theirs, 10), unit)}
+        </div>`).join("");
+
+      if (!hasMine) return;
+
+      renderActivity(mine);
+      renderLeaders(board, rank);
+      renderRivers(mine);
+      renderSeverity(mine, othersReports);
+    }
+
+    function renderActivity(mine) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const days = Array.from({ length: 14 }, (_, i) =>
+        new Date(today.getTime() - (13 - i) * DAY));
+
+      const dayKey = date => {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime();
+      };
+      const count = list => {
+        const byDay = new Map();
+        list.forEach(r => {
+          const key = dayKey(r.created_at);
+          byDay.set(key, (byDay.get(key) || 0) + 1);
+        });
+        return byDay;
+      };
+      const youByDay = count(mine);
+      const allByDay = count(reports);
+      const max = Math.max(1, ...days.map(d => allByDay.get(d.getTime()) || 0));
+
+      const fmt = d => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const bar = (n, color) => `<i class="${n ? "" : "zero"}"
+        style="height:${(n / max) * 100}%;background:${color}"></i>`;
+
+      $("activityChart").innerHTML = `
+        <div class="cols">
+          <span class="ymax">${max}</span>
+          ${days.map(d => {
+            const you = youByDay.get(d.getTime()) || 0;
+            const all = allByDay.get(d.getTime()) || 0;
+            return `<div class="col" data-tip="<b>${fmt(d)}</b><br>You: ${you} · Community: ${all}">
+              ${bar(you, "var(--you)")}${bar(all, "var(--crowd)")}
+            </div>`;
+          }).join("")}
+        </div>
+        <div class="colaxis">
+          ${days.map((d, i) => `<span>${i % 3 === 1 || i === 13 ? d.getDate() : ""}</span>`).join("")}
+        </div>`;
+    }
+
+    function renderLeaders(board, rank) {
+      const top = board.slice(0, 7);
+      if (rank > 7) top.push(board[rank - 1]);
+      const max = Math.max(1, ...top.map(p => p.points));
+
+      $("leaderChart").innerHTML = top.map(person => {
+        const me = person.name === currentUser;
+        const place = board.indexOf(person) + 1;
+        const tip = `<b>#${place} ${escapeHTML(person.name)}</b><br>` +
+          `${person.count} reports · ${person.items} items · ${person.points} pts`;
+        return `
+          <div class="hrow ${me ? "me" : ""}" data-tip="${escapeHTML(tip)}">
+            <span class="name">${place}. ${escapeHTML(me && person.name !== "You" ? person.name + " (you)" : person.name)}</span>
+            <div class="track" style="width:${(person.points / max) * 100}%;
+              background:${me ? "var(--you)" : "var(--crowd)"}"></div>
+            <span class="val">${person.points}</span>
+          </div>`;
+      }).join("");
+    }
+
+    function renderRivers(mine) {
+      const rivers = [...new Set(reports.map(r => r.river))]
+        .map(river => ({
+          river,
+          you: pct(mine.filter(r => r.river === river).length, mine.length),
+          all: pct(reports.filter(r => r.river === river).length, reports.length)
+        }))
+        .sort((a, b) => b.all - a.all);
+
+      $("riverChart").innerHTML = rivers.map(({ river, you, all }) => {
+        const name = escapeHTML(river);
+        return `
+          <div class="rivername">${name}</div>
+          <div class="pair">
+            <div class="hrow me" data-tip="${escapeHTML(`<b>${name}</b><br>${you}% of your reports`)}">
+              <span class="name">You</span>
+              <div class="track" style="width:${you}%;background:var(--you);
+                ${you ? "" : "min-width:2px;opacity:.35"}"></div>
+              <span class="val">${you}%</span>
+            </div>
+            <div class="hrow" data-tip="${escapeHTML(`<b>${name}</b><br>${all}% of all community reports`)}">
+              <span class="name">Community</span>
+              <div class="track" style="width:${all}%;background:var(--crowd)"></div>
+              <span class="val">${all}%</span>
+            </div>
+          </div>`;
+      }).join("");
+    }
+
+    function renderSeverity(mine, othersReports) {
+      const mix = list => {
+        const n = list.length || 1;
+        const bucket = names => list.filter(r => names.includes(r.severity)).length;
+        return [
+          ["Low", bucket(["none", "low"]), "var(--green)"],
+          ["Moderate", bucket(["moderate"]), "var(--cyan)"],
+          ["High", bucket(["high"]), "var(--orange)"],
+          ["Severe", bucket(["severe"]), "var(--red)"]
+        ].map(([name, count, color]) => [name, count, pct(count, n), color]);
+      };
+      const stack = (label, list) => `
+        <div class="stacklabel">${label} · ${list.length} reports</div>
+        <div class="stack">
+          ${mix(list).filter(([, n]) => n).map(([name, n, share, color]) => `
+            <span style="flex:${share};background:${color}"
+              data-tip="<b>${label} · ${name}</b><br>${n} reports (${share}%)">
+              ${share >= 14 ? share + "%" : ""}
+            </span>`).join("")}
+        </div>`;
+
+      $("severityChart").innerHTML =
+        stack("You", mine) + stack("Rest of the community", othersReports);
+    }
+
+    /* Tooltip for any element with data-tip */
+    document.addEventListener("mousemove", event => {
+      const target = event.target.closest("[data-tip]");
+      const tip = $("chartTip");
+      if (!target) {
+        tip.classList.add("hidden");
+        return;
+      }
+      tip.innerHTML = target.dataset.tip;
+      tip.classList.remove("hidden");
+      const x = Math.min(event.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+      const y = Math.min(event.clientY + 14, window.innerHeight - tip.offsetHeight - 8);
+      tip.style.left = `${x}px`;
+      tip.style.top = `${y}px`;
+    });
+
+    // Reports already filed under the old name keep it; the server stores
+    // the reporter name as sent.
+    function setUser(name) {
+      const clean = name.trim().slice(0, 30) || "You";
+      if (clean === currentUser) return;
+      currentUser = clean;
+      try {
+        localStorage.setItem(USER_KEY, clean);
+      } catch {
+        // Name change lasts for this session only.
+      }
+      showProfile();
+      render();
+    }
+
+    function showProfile() {
+      $("profileName").textContent = currentUser;
+      $("avatar").textContent = initials(currentUser);
+      $("userName").value = currentUser;
+    }
+
+    $("userName").addEventListener("change", event => setUser(event.target.value));
+    $("userName").addEventListener("keydown", event => {
+      if (event.key === "Enter") event.target.blur();
+    });
+
+    /* =========================
+       MAP
+       Bubbles: /api/map/bubbles (grid cells, sized by report count).
+       Heat: /api/map/points (one point per report).
+       ========================= */
+    const TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+    const TILE_ATTRIBUTION =
+      '&copy; <a href="https://www.openstreetmap.org/copyright">' +
+      'OpenStreetMap</a> &copy; ' +
+      '<a href="https://carto.com/attributions">CARTO</a>';
+
+    // Grid cell size follows the zoom so bubbles split apart as you zoom in.
+    function cellSize() {
+      const zoom = map ? map.getZoom() : 12;
+      return Math.round(Math.min(10000, Math.max(50, 500 * 2 ** (12 - zoom))));
+    }
+
+    function initializeMap() {
+      if (!window.L) {
+        renderFallbackMap();
+        return;
+      }
+
+      // Remove any fallback diagram before Leaflet initializes.
+      $("map").replaceChildren();
+
+      map = L.map("map", {
+        scrollWheelZoom: false
+      }).setView([39.960, -75.171], 12);
+
+      markers = L.layerGroup().addTo(map);
+
+      const tiles = L.tileLayer(TILE_URL, {
+        attribution: TILE_ATTRIBUTION,
+        maxZoom: 19
+      }).addTo(map);
+
+      tiles.on("tileerror", () => {
+        tileFailures++;
+
+        if (tileFailures === 4 && map) {
+          map.remove();
+          map = null;
+          renderFallbackMap();
+
+          showToast(
+            "Map tiles unavailable. Showing an approximate location diagram."
+          );
+        }
+      });
+
+      map.on("zoomend", () => {
+        if (currentLayer === "bubbles") renderMap();
+      });
+    }
+
+    async function renderMap() {
+      if (currentView !== "overview") return;
+
+      const request = ++mapRequest;
+      const params = filterQuery();
+      let features;
+
+      try {
+        if (currentLayer === "heat") {
+          const data = await api(`/api/map/points?${params}`);
+          features = data.features.map(feature => ({
+            lat: feature.geometry.coordinates[1],
+            lng: feature.geometry.coordinates[0],
+            severity: feature.properties.severity,
+            score: feature.properties.score,
+            count: 1,
+            id: feature.properties.id
+          }));
+        } else {
+          params.set("cell_m", cellSize());
+          const data = await api(`/api/map/bubbles?${params}`);
+          features = data.bubbles.map(bubble => ({
+            lat: bubble.latitude,
+            lng: bubble.longitude,
+            severity: bubble.avg_severity,
+            score: Math.round(bubble.avg_score),
+            count: bubble.report_count,
+            bubble
+          }));
+        }
+      } catch {
+        if (request === mapRequest) {
+          $("mapCount").textContent = "Map data unavailable";
+        }
+        return;
+      }
+
+      if (request !== mapRequest) return;
+
+      mapFeatures = features;
+      const located = features.reduce((sum, f) => sum + f.count, 0);
+      $("mapCount").textContent = located
+        ? `${located} report${located === 1 ? "" : "s"} on the map`
+        : "No located reports match these filters";
+
+      drawMap();
+    }
+
+    function featureTooltip(feature) {
+      if (feature.bubble) {
+        const b = feature.bubble;
+        return `<b>${b.report_count} report${b.report_count === 1 ? "" : "s"}</b>` +
+          ` · ${b.open_count} open<br>` +
+          `Avg score ${Math.round(b.avg_score)} · max ${b.max_score}` +
+          (b.waterways.length ? `<br>${escapeHTML(b.waterways.join(", "))}` : "");
+      }
+
+      const report = reports.find(r => r.id === feature.id);
+      return `<b>${escapeHTML(report?.name ?? "Report")}</b><br>Score ${feature.score}`;
+    }
+
+    // A bubble with one report opens it; a bigger one zooms in to split it.
+    function openFeature(feature) {
+      if (feature.id) {
+        openDetail(feature.id);
+        return;
+      }
+
+      const [minLat, minLng, maxLat, maxLng] = feature.bubble.bounds;
+      const inCell = filteredReports().filter(r =>
+        r.hasLocation &&
+        r.latitude >= minLat && r.latitude < maxLat &&
+        r.longitude >= minLng && r.longitude < maxLng);
+
+      if (inCell.length === 1) {
+        openDetail(inCell[0].id);
+      } else if (map) {
+        map.setView([feature.lat, feature.lng], Math.min(18, map.getZoom() + 2));
+      }
+    }
+
+    function drawMap() {
+      if (!map) {
+        renderFallbackMap();
+        return;
+      }
+
+      markers.clearLayers();
+
+      mapFeatures.forEach(feature => {
+        const color = SEVERITY_COLOR[feature.severity];
+
+        if (currentLayer === "heat") {
+          L.marker([feature.lat, feature.lng], {
+            interactive: false,
+            icon: L.divIcon({
+              className: "",
+              html: `
+                <div class="heatpoint" style="
+                  width:90px;
+                  height:90px;
+                  background:radial-gradient(
+                    circle,
+                    ${color},
+                    ${color}99 30%,
+                    transparent 70%
+                  )
+                "></div>
+              `,
+              iconSize: [90, 90],
+              iconAnchor: [45, 45]
+            })
+          }).addTo(markers);
+        }
+
+        const circle = L.circleMarker(
+          [feature.lat, feature.lng],
+          {
+            radius: currentLayer === "heat"
+              ? 5
+              : 10 + Math.sqrt(feature.count) * 8,
+            color: "#b7f8da",
+            weight: 2,
+            fillColor: color,
+            fillOpacity: currentLayer === "heat" ? 0.8 : 0.65
+          }
+        ).addTo(markers);
+
+        circle.bindTooltip(featureTooltip(feature));
+        circle.on("click", () => openFeature(feature));
+      });
+    }
+
+    function renderFallbackMap() {
+      const bubbles = mapFeatures.map((feature, index) => {
+        const x = Math.max(
+          8,
+          Math.min(90, ((feature.lng + 75.235) / 0.12) * 100)
+        );
+
+        const y = Math.max(
+          8,
+          Math.min(86, ((40.023 - feature.lat) / 0.11) * 100)
+        );
+
+        const size = currentLayer === "heat"
+          ? 65
+          : 20 + Math.sqrt(feature.count) * 10;
+
+        return `
+          <button
+            aria-label="${feature.count} report(s), average score ${feature.score}"
+            data-feature="${index}"
+            style="
+              left:${x}%;
+              top:${y}%;
+              width:${size}px;
+              height:${size}px;
+              background:${SEVERITY_COLOR[feature.severity]}88;
+              transform:translate(-50%,-50%);
+              ${currentLayer === "heat" ? "filter:blur(5px);" : ""}
+            "
+          ></button>
+        `;
+      }).join("");
+
+      $("map").innerHTML = `
+        <div class="fallback">
+          <svg
+            viewBox="0 0 700 420"
+            width="100%"
+            height="100%"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <defs>
+              <pattern
+                id="streetGrid"
+                width="38"
+                height="38"
+                patternTransform="rotate(-22)"
+                patternUnits="userSpaceOnUse"
+              >
+                <rect width="38" height="38" fill="#082a37"/>
+                <path
+                  d="M0 0H38V38"
+                  fill="none"
+                  stroke="#113c4c"
+                  stroke-width="4"
+                />
+              </pattern>
+            </defs>
+
+            <rect width="700" height="420" fill="url(#streetGrid)"/>
+
+            <path
+              d="M530-20Q485 100 560 180T510 440"
+              fill="none"
+              stroke="#10526a"
+              stroke-width="53"
+            />
+
+            <path
+              d="M275-20Q210 85 273 155T190 275 215 440"
+              fill="none"
+              stroke="#10526a"
+              stroke-width="22"
+            />
+
+            <path
+              d="M180 0 200 76 247 117"
+              fill="none"
+              stroke="#10526a"
+              stroke-width="9"
+            />
+
+            <text
+              x="320"
+              y="225"
+              fill="#6c9dad"
+              font-size="15"
+              letter-spacing="3"
+            >PHILADELPHIA</text>
+
+            <text
+              x="552"
+              y="300"
+              fill="#36a6c5"
+              font-size="12"
+              transform="rotate(-78 552 300)"
+            >DELAWARE RIVER</text>
+
+            <text
+              x="115"
+              y="255"
+              fill="#36a6c5"
+              font-size="12"
+              transform="rotate(-70 115 255)"
+            >SCHUYLKILL RIVER</text>
+          </svg>
+
+          <span class="fallbacklabel">
+            Offline · approximate diagram
+          </span>
+
+          ${bubbles}
+        </div>
+      `;
+    }
+
+    /* =========================
+       NAVIGATION AND FILTERS
+       ========================= */
+    function setView(view) {
+      currentView = view;
+
+      document.querySelectorAll("[data-view]").forEach(button => {
+        button.classList.toggle(
+          "active",
+          button.dataset.view === view
+        );
+      });
+
+      $("mapSection").classList.toggle("hidden", view !== "overview");
+      $("communityStats").classList.toggle("hidden", view === "mine");
+      $("mineSection").classList.toggle("hidden", view !== "mine");
+
+      const headings = {
+        overview: [
+          "A clearer view of our waterways.",
+          "Spot litter. Map the impact. Make a difference.",
+          "Recent reports"
+        ],
+        reports: [
+          "Every report tells a story.",
+          "Explore and review community litter sightings.",
+          "Community reports"
+        ],
+        cleanup: [
+          "Turn sightings into action.",
+          "Prioritize the places that need a little care.",
+          "Cleanup queue"
+        ],
+        mine: [
+          "Your impact on our waterways.",
+          "Your reports, and how you stack up against the community.",
+          "Your reports"
+        ]
+      };
+
+      $("pageTitle").textContent = headings[view][0];
+      $("pageSubtitle").textContent = headings[view][1];
+      $("tableTitle").textContent = headings[view][2];
+
+      $("tableSubtitle").textContent = view === "cleanup"
+        ? "Highest severity first. Update a report to track progress."
+        : view === "mine"
+          ? "Every sighting you’ve filed, newest first."
+          : "A little attention goes a long way.";
+
+      render();
+
+      if (map && view === "overview") {
+        setTimeout(() => map?.invalidateSize(), 50);
+      }
+    }
+
+    document.addEventListener("click", event => {
+      const detailButton = event.target.closest("[data-detail]");
+      const featureButton = event.target.closest("[data-feature]");
+      const navigationButton = event.target.closest("[data-view]");
+
+      if (detailButton) {
+        openDetail(detailButton.dataset.detail);
+      }
+
+      if (featureButton) {
+        const feature = mapFeatures[Number(featureButton.dataset.feature)];
+        if (feature) openFeature(feature);
+      }
+
+      if (navigationButton) {
+        setView(navigationButton.dataset.view);
+      }
+    });
+
+    document.querySelectorAll("[data-layer]").forEach(button => {
+      button.onclick = () => {
+        currentLayer = button.dataset.layer;
+
+        document.querySelectorAll("[data-layer]").forEach(item => {
+          const active = item === button;
+          item.classList.toggle("active", active);
+          item.setAttribute("aria-pressed", String(active));
+        });
+
+        $("mapNote").textContent = currentLayer === "heat"
+          ? "One glow per report · color = litter score"
+          : "Bubble size = reports · color = average score";
+
+        renderMap();
+      };
+    });
+
+    $("severityFilter").onchange = render;
+    $("statusFilter").onchange = render;
+
+    /* =========================
+       RECOMMENDATIONS
+       ========================= */
+    function recommendationHTML(report) {
+      const rec = report.recommendation || {};
+      const contacts = (rec.authorities || []).map(authority => `
+        <li>
+          <b>${escapeHTML(authority.name)}</b>: ${escapeHTML(authority.contact)}
+          ${authority.url
+            ? ` · <a href="${escapeHTML(authority.url)}" target="_blank" rel="noopener">website</a>`
+            : ""}
+        </li>`).join("");
+      const actions = (rec.actions || []).map(action =>
+        `<li>${escapeHTML(action)}</li>`).join("");
+
+      return `
+        <strong>${escapeHTML(rec.summary || "No recommendation.")}</strong>
+        ${contacts ? `<ul>${contacts}</ul>` : ""}
+        ${actions ? `<ul>${actions}</ul>` : ""}
+      `;
+    }
+
+    /* =========================
+       REPORT DETAILS
+       ========================= */
+    function showDetailPhoto(report) {
+      const image = document.createElement("img");
+      image.src = showOriginal ? report.image_url : report.annotated_image_url;
+      image.alt = showOriginal
+        ? "Reported waterway"
+        : "Reported waterway with detected litter boxed";
+      $("detailPhoto").replaceChildren(image);
+      $("photoToggle").textContent = showOriginal
+        ? "Show detected litter"
+        : "Show original photo";
+    }
+
+    function openDetail(id) {
+      const report = reports.find(item => item.id === id);
+      if (!report) return;
+
+      selectedReportId = id;
+      showOriginal = false;
+
+      const reportedAt = new Date(report.created_at).toLocaleString("en-US", {
+        month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
+      });
+      const coordinates = report.hasLocation
+        ? `${report.latitude.toFixed(4)}, ${report.longitude.toFixed(4)}` +
+          (report.location_confirmed ? "" : " (unconfirmed)")
+        : "Not set";
+
+      $("detailTitle").textContent = report.name;
+
+      $("detailData").innerHTML = `
+        <div>
+          <small>Litter score</small>
+          <strong>${report.score} / 100 · ${SEVERITY_LABEL[report.severity]}</strong>
+        </div>
+
+        <div>
+          <small>Items detected</small>
+          <strong>${itemsText(report.item_count)}</strong>
+        </div>
+
+        <div>
+          <small>Waterway</small>
+          <strong>${escapeHTML(report.river)}</strong>
+        </div>
+
+        <div>
+          <small>Coordinates</small>
+          <strong>${coordinates}</strong>
+        </div>
+
+        <div>
+          <small>Reported</small>
+          <strong>${reportedAt}${report.reporter ? ` by ${escapeHTML(report.reporter)}` : ""}</strong>
+        </div>
+
+        <div>
+          <small>Model</small>
+          <strong>${escapeHTML(report.model_name)}${report.model_is_stand_in ? " (stand-in)" : ""}</strong>
+        </div>
+
+        ${report.notes ? `
+          <div style="grid-column:1/-1">
+            <small>Notes</small>
+            <strong style="font-weight:400;font-size:14px">${escapeHTML(report.notes)}</strong>
+          </div>` : ""}
+      `;
+
+      $("detailRecs").innerHTML = recommendationHTML(report);
+      $("detailRecs").classList.toggle("hazard", Boolean(report.hazard_suspected));
+
+      $("detailPhoto").classList.remove("hidden");
+      $("photoToggle").classList.remove("hidden");
+      showDetailPhoto(report);
+
+      $("detailStatus").innerHTML = Object.entries(STATUS_LABEL).map(([value, label]) =>
+        `<option value="${value}">${label}</option>`).join("");
+      $("detailStatus").value = report.status;
+      $("statusNote").value = "";
+
+      $("detailHistory").innerHTML = (report.status_history || []).map(entry => `
+        <li>
+          <b>${escapeHTML(STATUS_LABEL[entry.status] ?? entry.status)}</b>
+          · ${new Date(entry.changed_at).toLocaleString("en-US", {
+            month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
+          })}
+          ${entry.changed_by ? ` · ${escapeHTML(entry.changed_by)}` : ""}
+          ${entry.note ? `<br>${escapeHTML(entry.note)}` : ""}
+        </li>`).join("");
+
+      $("detailNote").textContent = report.score_note ||
+        "Visible litter only, not a water-quality assessment.";
+
+      $("detailDialog").showModal();
+    }
+
+    $("photoToggle").onclick = () => {
+      const report = reports.find(item => item.id === selectedReportId);
+      if (!report) return;
+      showOriginal = !showOriginal;
+      showDetailPhoto(report);
+    };
+
+    function replaceReport(updated) {
+      const view = toView(updated);
+      const index = reports.findIndex(item => item.id === view.id);
+      if (index >= 0) reports[index] = view;
+      else reports.unshift(view);
+      return view;
+    }
+
+    $("saveStatus").onclick = async () => {
+      const report = reports.find(item => item.id === selectedReportId);
+      if (!report) return;
+
+      const status = $("detailStatus").value;
+      const note = $("statusNote").value.trim();
+
+      if (status === report.status && !note) {
+        $("detailDialog").close();
+        return;
+      }
+
+      $("saveStatus").disabled = true;
+
+      try {
+        const updated = await api(
+          `/api/reports/${encodeURIComponent(report.id)}/status`,
+          sendJSON("PATCH", {
+            status,
+            note: note || null,
+            changed_by: currentUser
+          })
+        );
+        replaceReport(updated);
+        render();
+        $("detailDialog").close();
+        showToast("Cleanup status updated.");
+      } catch (error) {
+        showToast(`Couldn't update status: ${error.message}`);
+      } finally {
+        $("saveStatus").disabled = false;
+      }
+    };
+
+    document.querySelectorAll("[data-close]").forEach(button => {
+      button.onclick = () => $(button.dataset.close).close();
+    });
+
+    document.querySelectorAll("dialog").forEach(dialog => {
+      dialog.addEventListener("click", event => {
+        if (event.target !== dialog) return;
+
+        const bounds = dialog.getBoundingClientRect();
+
+        if (
+          event.clientX < bounds.left ||
+          event.clientX > bounds.right ||
+          event.clientY < bounds.top ||
+          event.clientY > bounds.bottom
+        ) {
+          dialog.close();
+        }
+      });
+    });
+
+    /* =========================
+       PHOTO UPLOAD
+       ========================= */
+    const MAX_UPLOAD_MB = 20;
+
+    function showStep(showResult) {
+      $("uploadStep").classList.toggle("hidden", showResult);
+      $("resultStep").classList.toggle("hidden", !showResult);
+
+      $("step1").classList.toggle("current", !showResult);
+      $("step2").classList.toggle("current", showResult);
+
+      $("uploadError").textContent = "";
+
+      // Step 1 previews the chosen photo; step 2 shows the detections.
+      const src = showResult ? draft?.annotated_image_url : photoURL;
+      $("preview").classList.toggle("hidden", !src);
+
+      if (src) {
+        $("previewImage").src = src;
+      } else {
+        $("previewImage").removeAttribute("src");
+      }
+    }
+
+    function resetPhoto() {
+      if (photoURL) URL.revokeObjectURL(photoURL);
+      photoURL = "";
+      photoFile = null;
+    }
+
+    $("newReport").onclick = () => {
+      resetPhoto();
+      draft = null;
+      $("photoInput").value = "";
+      $("waterway").value = "";
+      $("notes").value = "";
+      $("hazard").checked = false;
+      $("analyze").disabled = true;
+      $("analyze").textContent = "Analyze photo";
+      $("resultStep").reset();
+
+      showStep(false);
+      $("reportDialog").showModal();
+    };
+
+    document.addEventListener("click", event => {
+      if (event.target.closest("[data-new-report]")) $("newReport").click();
+    });
+
+    $("back").onclick = () => {
+      $("reportDialog").close();
+      showToast("Report saved without a confirmed location. Open it from the table to see it.");
+    };
+
+    function readPhoto(file) {
+      $("uploadError").textContent = "";
+      if (!file) return;
+
+      resetPhoto();
+      $("analyze").disabled = true;
+
+      const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+      ];
+
+      if (!allowedTypes.includes(file.type)) {
+        $("uploadError").textContent = "Choose a JPG, PNG or WebP image.";
+        showStep(false);
+        return;
+      }
+
+      if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+        $("uploadError").textContent =
+          `That photo is over ${MAX_UPLOAD_MB} MB. Please choose a smaller one.`;
+        showStep(false);
+        return;
+      }
+
+      // The original file is uploaded as-is so the server can read its GPS data.
+      photoFile = file;
+      photoURL = URL.createObjectURL(file);
+      showStep(false);
+      $("analyze").disabled = false;
+    }
+
+    $("photoInput").onchange = event => {
+      readPhoto(event.target.files[0]);
+    };
+
+    ["dragenter", "dragover"].forEach(eventName => {
+      $("dropzone").addEventListener(eventName, event => {
+        event.preventDefault();
+        $("dropzone").classList.add("drag");
+      });
+    });
+
+    ["dragleave", "drop"].forEach(eventName => {
+      $("dropzone").addEventListener(eventName, event => {
+        event.preventDefault();
+        $("dropzone").classList.remove("drag");
+
+        if (eventName === "drop") {
+          readPhoto(event.dataTransfer.files[0]);
+        }
+      });
+    });
+
+    /* =========================
+       MODEL INTEGRATION
+       POST /api/reports runs the detector, scores the photo and saves
+       the report. Step 2 then confirms where it was taken.
+       ========================= */
+    async function analyzePhoto() {
+      if (!photoFile) return;
+
+      $("analyze").disabled = true;
+      $("analyze").textContent = "Analyzing photo…";
+      $("uploadError").textContent = "";
+
+      const form = new FormData();
+      form.append("image", photoFile);
+      form.append("reporter", currentUser);
+      form.append("hazard_suspected", $("hazard").checked ? "true" : "false");
+      if ($("waterway").value) form.append("waterway", $("waterway").value);
+      if ($("notes").value.trim()) form.append("notes", $("notes").value.trim());
+
+      try {
+        draft = replaceReport(await api("/api/reports", { method: "POST", body: form }));
+      } catch (error) {
+        $("uploadError").textContent = error.message;
+        $("analyze").disabled = false;
+        $("analyze").textContent = "Analyze photo";
+        return;
+      }
+
+      $("analyze").textContent = "Analyze photo";
+      render();
+
+      if ($("reportDialog").open) {
+        showResult(draft);
+      } else {
+        showToast("Report saved. Open it from the table to confirm its location.");
+      }
+    }
+
+    $("analyze").onclick = analyzePhoto;
+
+    function showResult(report) {
+      $("resultScore").innerHTML =
+        `${report.score} <span style="font-size:14px;font-weight:400">/ 100</span>`;
+      $("resultScore").style.color = SEVERITY_COLOR[report.severity];
+      $("resultSeverity").textContent =
+        `${SEVERITY_LABEL[report.severity]} visible-litter severity`;
+      $("resultItems").textContent = `${itemsText(report.item_count)} detected`;
+      $("resultItems").className = `score ${SCORE_CLASS[report.severity] ?? ""}`;
+
+      $("resultNote").textContent = (report.model_is_stand_in
+        ? "Scored by a stand-in model, not the trained litter detector. "
+        : "") + (report.score_note || "");
+
+      $("resultRecs").innerHTML = recommendationHTML(report);
+      $("resultRecs").classList.toggle("hazard", Boolean(report.hazard_suspected));
+
+      $("locationName").value = report.location_name || "";
+
+      const start = report.hasLocation
+        ? [report.latitude, report.longitude]
+        : PHILLY_CENTER;
+      setPin(start[0], start[1]);
+
+      $("locationNote").textContent = report.location_source === "exif"
+        ? "Your report is saved. We placed the pin using your photo’s GPS. " +
+          "Drag it if that’s not quite right, then confirm."
+        : "Your report is saved. Click the map or drag the pin to where the " +
+          "photo was taken, then confirm so it shows up on the map.";
+
+      showStep(true);
+      openPinMap(start, report.hasLocation ? 15 : 12);
+    }
+
+    /* =========================
+       LOCATION AND SUBMISSION
+       ========================= */
+    function setPin(lat, lng, pan = false) {
+      $("latitude").value = Number(lat).toFixed(6);
+      $("longitude").value = Number(lng).toFixed(6);
+
+      if (pinMarker) {
+        pinMarker.setLatLng([lat, lng]);
+        if (pan) pinMap.panTo([lat, lng]);
+      }
+    }
+
+    function openPinMap(center, zoom) {
+      if (!window.L) {
+        $("pickMap").classList.add("hidden");
+        return;
+      }
+
+      if (!pinMap) {
+        pinMap = L.map("pickMap", { scrollWheelZoom: false });
+        L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 19 }).addTo(pinMap);
+
+        pinMarker = L.marker(center, { draggable: true, autoPan: true }).addTo(pinMap);
+        pinMarker.on("dragend", () => {
+          const { lat, lng } = pinMarker.getLatLng();
+          setPin(lat, lng);
+        });
+        pinMap.on("click", event => setPin(event.latlng.lat, event.latlng.lng));
+      }
+
+      pinMarker.setLatLng(center);
+      // The dialog has just become visible; let Leaflet measure it first.
+      setTimeout(() => {
+        pinMap.invalidateSize();
+        pinMap.setView(center, zoom);
+      }, 50);
+    }
+
+    ["latitude", "longitude"].forEach(id => {
+      $(id).addEventListener("change", () => {
+        const lat = Number($("latitude").value);
+        const lng = Number($("longitude").value);
+        if (Number.isFinite(lat) && Number.isFinite(lng) && pinMarker) {
+          pinMarker.setLatLng([lat, lng]);
+          pinMap.panTo([lat, lng]);
+        }
+      });
+    });
+
+    $("locate").onclick = () => {
+      if (!navigator.geolocation) {
+        $("uploadError").textContent =
+          "Location is unavailable. Place the pin on the map instead.";
+        return;
+      }
+
+      $("locate").textContent = "Finding location…";
+
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          setPin(position.coords.latitude, position.coords.longitude, true);
+          pinMap?.setZoom(16);
+          $("locate").textContent = "Use my current location";
+        },
+        () => {
+          $("uploadError").textContent =
+            "Could not access location. " +
+            "Place the pin on the map instead.";
+
+          $("locate").textContent = "Use my current location";
+        },
+        { timeout: 10000 }
+      );
+    };
+
+    $("resultStep").onsubmit = async event => {
+      event.preventDefault();
+      if (!draft) return;
+
+      const name = $("locationName").value.trim();
+      const latitude = Number($("latitude").value);
+      const longitude = Number($("longitude").value);
+
+      if (!name) {
+        $("locationName").focus();
+        return;
+      }
+
+      $("confirmLocation").disabled = true;
+      $("uploadError").textContent = "";
+
+      let saved;
+      try {
+        saved = replaceReport(await api(
+          `/api/reports/${encodeURIComponent(draft.id)}/location`,
+          sendJSON("PATCH", { latitude, longitude, location_name: name })
+        ));
+      } catch (error) {
+        $("uploadError").textContent = error.message;
+        return;
+      } finally {
+        $("confirmLocation").disabled = false;
+      }
+
+      $("severityFilter").value = "all";
+      $("statusFilter").value = "all";
+
+      $("reportDialog").close();
+      if (currentView !== "overview") setView("overview");
+      else render();
+
+      if (map) {
+        map.setView([saved.latitude, saved.longitude], 14);
+      }
+
+      showToast(
+        saved.in_philadelphia === false
+          ? "Report saved. Note: that spot is outside Philadelphia."
+          : "Report saved. Thanks for looking out for our waterways."
+      );
+    };
+
+    /* =========================
+       EXPORT
+       The server builds the files, using the severity and status filters.
+       ========================= */
+    function exportReports(format) {
+      const params = filterQuery();
+      params.set("format", format);
+
+      const link = document.createElement("a");
+      link.href = `${API}/api/export?${params}`;
+      link.download = "";
+      document.body.append(link);
+      link.click();
+      link.remove();
+
+      showToast(format === "zip"
+        ? "Preparing the research ZIP (photos, labels and data)…"
+        : "Exporting reports that match the severity and status filters.");
+    }
+
+    $("export").onclick = () => exportReports("csv");
+    $("exportZip").onclick = () => exportReports("zip");
+
+    /* Optional browser agent integration */
+    if (document.modelContext?.registerTool) {
+      try {
+        Promise.resolve(
+          document.modelContext.registerTool({
+            name: "list_litter_reports",
+            description:
+              "Read reports currently visible under the UI filters.",
+            inputSchema: {
+              type: "object",
+              properties: {},
+              additionalProperties: false
+            },
+            annotations: {
+              readOnlyHint: true
+            },
+            execute: () => filteredReports().map(report => ({
+              id: report.id,
+              name: report.name,
+              waterway: report.waterway,
+              latitude: report.latitude,
+              longitude: report.longitude,
+              score: report.score,
+              severity: report.severity,
+              item_count: report.item_count,
+              status: report.status,
+              reporter: report.reporter,
+              created_at: report.created_at
+            }))
+          })
+        ).catch(() => {});
+      } catch {
+        // This optional API is not available in every browser.
+      }
+    }
+
+    // Pick up reports filed by other people when the tab comes back.
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && Date.now() - lastRefresh > 30000) {
+        refresh();
+        checkHealth();
+      }
+    });
+
+    /* Start application */
+    showProfile();
+    initializeMap();
+    render();
+    loadMeta();
+    checkHealth();
+    refresh();
+  </script>
+</body>
+</html>
