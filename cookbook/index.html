@@ -1,0 +1,1216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Rice Bowl Cookbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Source+Sans+3:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a kitchen notebook. Indigo-dyed cloth ink on rice paper, recipe index on the left of each card,
+   a real Nutrition Facts panel as the one loud element. Two tabs: the cookbook, and your own kitchen log. */
+:root {
+  --paper: #f6f5f1;
+  --sheet: #ffffff;
+  --ink: #1d2233;
+  --muted: #5d6273;
+  --line: #dcdbd3;
+  --indigo: #2c3e74;
+  --indigo-soft: #e6e9f3;
+  --chili: #b8321f;
+  --good: #2f7a4a;
+  --warn: #a8670f;
+  --label-bg: #ffffff;
+  --label-ink: #000000;
+  --shadow: 0 1px 2px rgba(29,34,51,.06), 0 6px 20px rgba(29,34,51,.06);
+  --f-display: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif;
+  --f-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --f-label: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #14161d; --sheet: #1c1f29; --ink: #e9e8e2; --muted: #a2a6b3; --line: #2f3342;
+    --indigo: #9fb2ec; --indigo-soft: #262c42; --chili: #ef7a63; --good: #6cc68e; --warn: #e3a74a;
+    --label-bg: #f4f3ee; --label-ink: #111111;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.3);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #14161d; --sheet: #1c1f29; --ink: #e9e8e2; --muted: #a2a6b3; --line: #2f3342;
+  --indigo: #9fb2ec; --indigo-soft: #262c42; --chili: #ef7a63; --good: #6cc68e; --warn: #e3a74a;
+  --label-bg: #f4f3ee; --label-ink: #111111;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.3);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--paper); color: var(--ink);
+  font: 16px/1.5 var(--f-body);
+  padding: 0 16px 64px;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1120px; margin: 0 auto; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+.eyebrow { font: 600 12px/1.2 var(--f-body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* Masthead */
+.mast {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 32px;
+  padding-block: 40px 20px; border-bottom: 2px solid var(--ink);
+}
+.mast h1 { font: 800 clamp(34px, 6vw, 56px)/1 var(--f-display); letter-spacing: -.01em; }
+.mast h1 small { display: block; font: 600 15px/1.3 var(--f-body); letter-spacing: 0; color: var(--muted); margin-top: 10px; max-width: 46ch; }
+.tabs { display: flex; gap: 4px; }
+.tab {
+  border: 1px solid var(--line); background: transparent; padding: 8px 16px; border-radius: 999px;
+  font-weight: 600; color: var(--muted);
+}
+.tab[aria-selected="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.tab .count { font-family: var(--f-mono); font-size: 12px; margin-left: 6px; opacity: .8; }
+
+/* Filter bar */
+.filters { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; padding-block: 20px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1px solid var(--line); background: var(--sheet); border-radius: 999px; padding: 5px 12px;
+  font-size: 14px; font-weight: 600; color: var(--ink);
+}
+.chip[aria-pressed="true"] { background: var(--indigo); border-color: var(--indigo); color: var(--sheet); }
+.chip .n { font-family: var(--f-mono); font-size: 11px; opacity: .7; margin-left: 4px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label, .field .lab { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+input[type="search"], input[type="text"], input[type="date"], select, textarea {
+  background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; min-width: 0;
+}
+textarea { resize: vertical; min-height: 84px; }
+.filters .grow { flex: 1 1 220px; }
+.filters input[type="search"] { width: 100%; }
+.range-row { display: flex; align-items: center; gap: 10px; }
+.range-row input { width: 140px; accent-color: var(--indigo); }
+.range-row output { font-family: var(--f-mono); font-size: 13px; min-width: 7ch; }
+
+/* Recipe index */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+.card {
+  text-align: left; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 0; display: flex; flex-direction: column; overflow: hidden;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.card:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--muted); }
+.card .plate {
+  position: relative; height: 112px; display: grid; place-items: center; overflow: hidden;
+  background: var(--tint); color: var(--tint-ink);
+}
+.card .plate .native { font: 800 34px/1 var(--f-display); white-space: nowrap; letter-spacing: .02em; }
+.card .plate .flag { position: absolute; left: 12px; top: 10px; font: 600 11px/1 var(--f-body); letter-spacing: .14em; text-transform: uppercase; opacity: .85; }
+.card .plate .heat { position: absolute; right: 12px; top: 8px; font-size: 12px; letter-spacing: 2px; }
+.card .body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.card h3 { font: 700 19px/1.2 var(--f-body); }
+.card .blurb { color: var(--muted); font-size: 14px; margin: 0; flex: 1; }
+.facts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--f-mono); font-size: 12px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 10px; }
+.facts b { color: var(--ink); font-weight: 500; }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; background: var(--indigo-soft); color: var(--indigo); }
+.empty { padding: 48px 20px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--r); }
+.empty h3 { font: 700 20px/1.3 var(--f-display); color: var(--ink); margin-bottom: 6px; }
+
+/* Cuisine tints (plate colors), shared by both themes since text on them uses --tint-ink */
+.c-thai     { --tint: #e7efe0; --tint-ink: #2f5a26; }
+.c-japanese { --tint: #f3e3e1; --tint-ink: #8a2a1f; }
+.c-filipino { --tint: #f6ecd2; --tint-ink: #7a5208; }
+.c-korean   { --tint: #e3e8f4; --tint-ink: #2c3e74; }
+.c-vietnamese { --tint: #e2f0ec; --tint-ink: #1f5e52; }
+.c-chinese  { --tint: #f5e1dc; --tint-ink: #9a2316; }
+.c-indian   { --tint: #f7e7d6; --tint-ink: #8a4410; }
+
+/* Dialogs */
+dialog {
+  border: 0; padding: 0; border-radius: 10px; background: var(--sheet); color: var(--ink);
+  width: min(980px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); box-shadow: 0 20px 60px rgba(0,0,0,.35);
+}
+dialog::backdrop { background: rgba(14,16,24,.55); }
+.dlg-head {
+  position: sticky; top: 0; z-index: 2; background: var(--sheet); display: flex; gap: 12px; align-items: flex-start;
+  justify-content: space-between; padding: 18px 20px 14px; border-bottom: 1px solid var(--line);
+}
+.dlg-head h2 { font: 800 clamp(24px, 4vw, 34px)/1.1 var(--f-display); }
+.dlg-head .sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+.x { border: 1px solid var(--line); background: transparent; border-radius: 999px; width: 36px; height: 36px; flex: none; font-size: 18px; line-height: 1; }
+.dlg-body { padding: 20px; }
+
+.recipe-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
+@media (max-width: 760px) { .recipe-layout { grid-template-columns: 1fr; } }
+.section-title { font: 700 13px/1 var(--f-body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.meta-row { display: flex; flex-wrap: wrap; gap: 8px 24px; padding-bottom: 16px; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
+.meta-row div { display: flex; flex-direction: column; }
+.meta-row .v { font: 500 18px/1.2 var(--f-mono); }
+.meta-row .k { font-size: 12px; color: var(--muted); }
+
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.stepper button { border: 0; background: transparent; width: 34px; height: 32px; font-size: 18px; }
+.stepper button:hover { background: var(--indigo-soft); }
+.stepper output { min-width: 3ch; text-align: center; font: 500 15px var(--f-mono); }
+
+.ingredients { list-style: none; margin: 0 0 24px; padding: 0; }
+.ingredients li { border-bottom: 1px solid var(--line); }
+.ingredients label { display: grid; grid-template-columns: 22px 92px minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 8px 2px; cursor: pointer; }
+.ingredients input { accent-color: var(--indigo); transform: translateY(2px); }
+.ingredients .q { font: 500 14px var(--f-mono); text-align: right; }
+.ingredients .note { color: var(--muted); font-size: 14px; }
+.ingredients input:checked ~ span { text-decoration: line-through; color: var(--muted); }
+
+.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.steps li { counter-increment: s; }
+.steps button {
+  width: 100%; text-align: left; border: 0; background: transparent; padding: 10px 8px 10px 44px; position: relative; border-radius: var(--r);
+  line-height: 1.55;
+}
+.steps button:hover { background: var(--indigo-soft); }
+.steps button::before {
+  content: counter(s); position: absolute; left: 8px; top: 9px; width: 26px; height: 26px; border-radius: 50%;
+  border: 1.5px solid var(--indigo); color: var(--indigo); display: grid; place-items: center; font: 600 13px var(--f-mono);
+}
+.steps button[aria-pressed="true"] { color: var(--muted); }
+.steps button[aria-pressed="true"]::before { content: "✓"; background: var(--indigo); color: var(--sheet); }
+.tip { margin-top: 18px; padding: 12px 14px; border-left: 3px solid var(--chili); background: var(--paper); font-size: 15px; }
+.tip b { color: var(--chili); }
+
+/* Nutrition Facts panel, deliberately in the FDA label style */
+.nf {
+  background: var(--label-bg); color: var(--label-ink); border: 1px solid var(--label-ink); padding: 6px 8px 8px;
+  font: 14px/1.25 var(--f-label);
+}
+.nf h4 { font: 900 32px/1 var(--f-label); margin: 0; letter-spacing: -.5px; }
+.nf .rule-8 { border-top: 10px solid var(--label-ink); margin: 4px 0; }
+.nf .rule-4 { border-top: 5px solid var(--label-ink); margin: 3px 0; }
+.nf .rule-1 { border-top: 1px solid var(--label-ink); }
+.nf .row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; border-top: 1px solid var(--label-ink); }
+.nf .row.indent { padding-left: 16px; }
+.nf .row.first { border-top: 0; }
+.nf .cal { display: flex; justify-content: space-between; align-items: flex-end; font-weight: 900; }
+.nf .cal span:first-child { font-size: 22px; }
+.nf .cal span:last-child { font-size: 40px; line-height: 1; }
+.nf .small { font-size: 11px; line-height: 1.3; margin-top: 4px; }
+.nf .bold { font-weight: 800; }
+.nf .toggle { display: flex; gap: 0; margin: 6px 0 2px; border: 1px solid var(--label-ink); }
+.nf .toggle button { flex: 1; border: 0; background: transparent; color: var(--label-ink); padding: 4px; font: 700 12px var(--f-label); }
+.nf .toggle button[aria-pressed="true"] { background: var(--label-ink); color: var(--label-bg); }
+.macro-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 12px 0 6px; }
+.macro-legend { display: flex; gap: 12px; flex-wrap: wrap; font: 12px var(--f-mono); color: var(--muted); }
+.macro-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+
+.btn {
+  border: 1px solid var(--ink); background: var(--ink); color: var(--paper); border-radius: var(--r); padding: 9px 16px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.btn:hover { opacity: .9; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn.ghost:hover { border-color: var(--ink); }
+.btn.danger { background: transparent; color: var(--chili); border-color: var(--line); }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+/* Kitchen log */
+.log-head { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; padding-block: 24px 16px; }
+.stats { display: flex; flex-wrap: wrap; gap: 28px; }
+.stat .v { font: 800 30px/1 var(--f-display); }
+.stat .k { font-size: 12px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin-top: 4px; }
+.mode-note { font-size: 13px; color: var(--muted); padding: 10px 12px; border: 1px dashed var(--line); border-radius: var(--r); margin-bottom: 16px; }
+.entries { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.entry { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; display: flex; flex-direction: column; }
+.entry .ph { aspect-ratio: 4 / 3; max-width: 100%; background: var(--paper); position: relative; }
+.entry .ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.entry .ph .noimg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; }
+.score-badge {
+  position: absolute; right: 10px; bottom: 10px; background: var(--sheet); color: var(--ink); border-radius: 999px;
+  padding: 4px 10px 4px 8px; display: flex; align-items: baseline; gap: 4px; box-shadow: var(--shadow);
+  font: 800 18px/1 var(--f-display);
+}
+.score-badge small { font: 500 11px var(--f-mono); color: var(--muted); }
+.entry .eb { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.entry h3 { font: 700 18px/1.25 var(--f-body); }
+.entry .when { font: 12px var(--f-mono); color: var(--muted); }
+.entry .notes { font-size: 14px; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.entry .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; padding-top: 6px; }
+.entry .actions .btn { padding: 6px 12px; font-size: 14px; }
+.stars { color: var(--warn); letter-spacing: 2px; font-size: 15px; }
+.stars .off { color: var(--line); }
+
+.verdict { font-size: 14px; border-top: 1px dashed var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.verdict .src { font: 11px var(--f-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.verdict p { margin: 0; }
+.bars { display: grid; grid-template-columns: auto minmax(0, 1fr) 3ch; gap: 4px 10px; align-items: center; font-size: 13px; }
+.bars .track { display: block; height: 6px; background: var(--paper); border-radius: 3px; overflow: hidden; border: 1px solid var(--line); }
+.bars .fill { display: block; height: 100%; background: var(--indigo); }
+.bars .val { font: 12px var(--f-mono); text-align: right; }
+.verdict ul { margin: 0; padding-left: 18px; color: var(--muted); }
+
+/* Entry form */
+.form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 20px; }
+.form .full { grid-column: 1 / -1; }
+@media (max-width: 640px) { .form { grid-template-columns: 1fr; } }
+.drop {
+  border: 2px dashed var(--line); border-radius: var(--r); padding: 20px; text-align: center; color: var(--muted);
+  display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; position: relative;
+}
+.drop.over { border-color: var(--indigo); background: var(--indigo-soft); }
+.drop img { max-height: 260px; max-width: 100%; border-radius: 4px; }
+.drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.star-input { display: flex; gap: 2px; }
+.star-input button { border: 0; background: transparent; font-size: 26px; line-height: 1; padding: 2px; color: var(--line); }
+.star-input button.on { color: var(--warn); }
+.form-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 4px; }
+.form-foot .hint { font-size: 13px; color: var(--muted); max-width: 52ch; }
+.err { color: var(--chili); font-size: 14px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px);
+  background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px; font-weight: 600; font-size: 14px;
+  opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 50; max-width: calc(100vw - 32px);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <h1>Rice Bowl Cookbook
+      <small>Home recipes from Thailand, Japan, the Philippines, Korea, Vietnam, China and India, with a log of what you actually cooked.</small>
+    </h1>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" id="tab-recipes" aria-selected="true" aria-controls="view-recipes">Recipes<span class="count num" id="count-recipes"></span></button>
+      <button class="tab" role="tab" id="tab-log" aria-selected="false" aria-controls="view-log">My Kitchen<span class="count num" id="count-log"></span></button>
+    </nav>
+  </header>
+
+  <!-- RECIPES -->
+  <section id="view-recipes" role="tabpanel" aria-labelledby="tab-recipes">
+    <div class="filters">
+      <div class="chips" id="cuisine-chips" aria-label="Filter by cuisine"></div>
+    </div>
+    <div class="filters" style="padding-top:0">
+      <div class="field grow">
+        <label for="q">Search dishes or ingredients</label>
+        <input type="search" id="q" placeholder="Try “tamarind”, “tofu” or “adobo”">
+      </div>
+      <div class="field">
+        <label for="maxcal">Max calories / serving</label>
+        <div class="range-row"><input type="range" id="maxcal" min="100" max="700" step="10" value="700"><output id="maxcal-out" class="num">700 kcal</output></div>
+      </div>
+      <div class="field">
+        <label for="sort">Sort</label>
+        <select id="sort">
+          <option value="name">A to Z</option>
+          <option value="cal-asc">Calories, low first</option>
+          <option value="cal-desc">Calories, high first</option>
+          <option value="protein">Most protein</option>
+          <option value="time">Quickest</option>
+        </select>
+      </div>
+      <div class="field">
+        <span class="lab">Diet</span>
+        <div class="chips">
+          <button class="chip" id="f-veg" aria-pressed="false">Vegetarian</button>
+          <button class="chip" id="f-mild" aria-pressed="false">Not spicy</button>
+        </div>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <!-- KITCHEN LOG -->
+  <section id="view-log" role="tabpanel" aria-labelledby="tab-log" hidden>
+    <div class="log-head">
+      <div class="stats" id="stats"></div>
+      <button class="btn" id="new-entry">+ Log a dish</button>
+    </div>
+    <p class="mode-note" id="mode-note"></p>
+    <div class="entries" id="entries"></div>
+  </section>
+
+  <footer>Nutrition figures are estimates per serving, calculated from typical ingredient values. Rice on the side is not included unless the recipe says so. Percent Daily Values use a 2,000 calorie diet.</footer>
+</div>
+
+<!-- Recipe dialog -->
+<dialog id="recipe-dlg" aria-labelledby="r-title">
+  <div class="dlg-head">
+    <div>
+      <div class="eyebrow" id="r-eyebrow"></div>
+      <h2 id="r-title"></h2>
+      <div class="sub" id="r-sub"></div>
+    </div>
+    <button class="x" data-close aria-label="Close">×</button>
+  </div>
+  <div class="dlg-body" id="r-body"></div>
+</dialog>
+
+<!-- Entry dialog -->
+<dialog id="entry-dlg" aria-labelledby="e-title">
+  <div class="dlg-head">
+    <div>
+      <div class="eyebrow">Kitchen log</div>
+      <h2 id="e-title">Log a dish</h2>
+    </div>
+    <button class="x" data-close aria-label="Close">×</button>
+  </div>
+  <form class="dlg-body form" id="entry-form" novalidate>
+    <div class="field">
+      <label for="e-recipe">Which recipe?</label>
+      <select id="e-recipe"></select>
+    </div>
+    <div class="field">
+      <label for="e-name">Dish name</label>
+      <input type="text" id="e-name" maxlength="80" placeholder="e.g. Grandma's pancit">
+    </div>
+    <div class="field">
+      <label for="e-date">Cooked on</label>
+      <input type="date" id="e-date">
+    </div>
+    <div class="field">
+      <span class="lab">How did it taste?</span>
+      <div class="star-input" id="e-stars" role="radiogroup" aria-label="Taste rating"></div>
+    </div>
+    <div class="field full">
+      <span class="lab">Photo of your plate</span>
+      <div class="drop" id="drop">
+        <input type="file" id="e-photo" accept="image/jpeg,image/png,image/webp,image/gif" aria-label="Upload a photo">
+        <img id="e-preview" alt="" hidden>
+        <strong id="drop-text">Drop a photo here or click to choose</strong>
+        <span style="font-size:13px">JPEG, PNG, WebP or GIF. The photo is what gets rated.</span>
+      </div>
+    </div>
+    <div class="field full">
+      <label for="e-notes">Notes</label>
+      <textarea id="e-notes" maxlength="2000" placeholder="What you changed, what you'd do next time…"></textarea>
+    </div>
+    <div class="form-foot full">
+      <span class="hint" id="rate-hint"></span>
+      <span class="err" id="e-err" role="alert"></span>
+      <div style="display:flex;gap:8px">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="submit" class="btn" id="e-save">Save and rate</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<!-- Delete confirmation -->
+<dialog id="confirm-dlg" style="width:min(420px,calc(100vw - 24px))">
+  <div class="dlg-body">
+    <h2 style="font:700 20px/1.3 var(--f-display);margin-bottom:8px">Delete this entry?</h2>
+    <p style="margin:0 0 18px;color:var(--muted)" id="confirm-text"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn ghost" data-close>Keep it</button>
+      <button class="btn danger" id="confirm-yes">Delete</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ------------------------------------------------------------------ *
+ *  Recipe data. Nutrition is per serving and approximate.            *
+ *  Ingredient rows: [quantity, unit, item, note]                     *
+ * ------------------------------------------------------------------ */
+const CUISINES = {
+  thai:       { label: "Thai" },
+  japanese:   { label: "Japanese" },
+  filipino:   { label: "Filipino" },
+  korean:     { label: "Korean" },
+  vietnamese: { label: "Vietnamese" },
+  chinese:    { label: "Chinese" },
+  indian:     { label: "Indian" },
+};
+
+const RECIPES = [
+  { id: "pad-thai", cuisine: "thai", name: "Pad Thai", native: "ผัดไทย", heat: 1, time: 35, servings: 2, size: "1 plate (350 g)",
+    blurb: "Rice noodles stir-fried with tamarind, fish sauce and palm sugar, finished with peanuts and lime.",
+    tags: ["noodles", "stir-fry"],
+    n: { kcal: 620, fat: 22, sat: 4, sodium: 1450, carbs: 78, fiber: 4, sugar: 18, protein: 26 },
+    ing: [[200,"g","dried rice noodles","3 mm wide"],[200,"g","shrimp","peeled; or firm tofu"],[2,"","eggs"],[3,"tbsp","tamarind paste"],[2,"tbsp","fish sauce"],[2,"tbsp","palm sugar","or light brown sugar"],[2,"tbsp","neutral oil"],[3,"cloves","garlic","minced"],[1,"","shallot","sliced"],[100,"g","bean sprouts"],[3,"stalks","garlic chives","5 cm lengths"],[3,"tbsp","roasted peanuts","crushed"],[1,"","lime","wedged"],[null,"","chili flakes","to taste"]],
+    steps: ["Soak the noodles in warm water for 25 minutes until pliable but still firm. Drain.","Stir tamarind, fish sauce and palm sugar together until the sugar dissolves. Taste: it should be sour, salty and sweet in equal measure.","Heat oil in a wok over high heat. Fry garlic and shallot for 30 seconds, then add the shrimp and cook until just pink.","Push everything to one side, crack in the eggs and scramble until half set.","Add noodles and sauce. Toss constantly for 2–3 minutes until the sauce is absorbed and the noodles are tender.","Fold in bean sprouts and chives, cook 30 seconds more. Serve with peanuts, lime and chili flakes."],
+    tip: "Cook no more than two portions at once. A crowded wok steams the noodles and they turn gummy." },
+
+  { id: "green-curry", cuisine: "thai", name: "Green Curry with Chicken", native: "แกงเขียวหวาน", heat: 2, time: 30, servings: 4, size: "1 bowl (380 g), rice not included",
+    blurb: "Coconut curry with green chili paste, Thai eggplant, makrut lime leaves and sweet basil.",
+    tags: ["curry", "gluten-free"],
+    n: { kcal: 520, fat: 39, sat: 26, sodium: 980, carbs: 14, fiber: 3, sugar: 7, protein: 30 },
+    ing: [[3,"tbsp","green curry paste"],[400,"ml","coconut milk","full fat"],[500,"g","chicken thigh","bite-size pieces"],[150,"g","Thai eggplant","quartered"],[120,"ml","chicken stock"],[1,"tbsp","fish sauce"],[1,"tsp","palm sugar"],[4,"","makrut lime leaves","torn"],[1,"cup","Thai basil leaves"],[1,"","red chili","sliced"]],
+    steps: ["Simmer half the coconut milk in a pot until the oil separates, about 4 minutes.","Fry the curry paste in that oil for 2 minutes, stirring, until fragrant.","Add chicken and stir to coat. Cook 3 minutes.","Pour in the rest of the coconut milk and the stock. Add eggplant and lime leaves; simmer 10 minutes.","Season with fish sauce and palm sugar. Turn off the heat, stir in basil and chili."],
+    tip: "“Cracking” the coconut cream before adding paste is what gives Thai curry its glossy, spotted surface." },
+
+  { id: "tom-yum", cuisine: "thai", name: "Tom Yum Goong", native: "ต้มยำกุ้ง", heat: 3, time: 25, servings: 4, size: "1 bowl (400 ml)",
+    blurb: "Hot-and-sour shrimp soup with lemongrass, galangal, lime leaves and chili.",
+    tags: ["soup", "gluten-free", "light"],
+    n: { kcal: 180, fat: 6, sat: 1, sodium: 1300, carbs: 10, fiber: 2, sugar: 4, protein: 20 },
+    ing: [[1,"L","chicken stock"],[400,"g","shrimp","shell on"],[2,"stalks","lemongrass","bruised, 5 cm pieces"],[6,"slices","galangal"],[5,"","makrut lime leaves","torn"],[150,"g","oyster mushrooms"],[2,"tbsp","nam prik pao","Thai chili jam"],[3,"tbsp","fish sauce"],[4,"tbsp","lime juice"],[4,"","bird's eye chilies","smashed"],[null,"","cilantro","to serve"]],
+    steps: ["Bring stock to a boil with lemongrass, galangal and lime leaves. Simmer 5 minutes.","Add mushrooms and chili jam, simmer 2 minutes.","Add shrimp and cook just until opaque, about 2 minutes.","Off the heat, add fish sauce, lime juice and chilies. Taste and adjust.","Ladle into bowls and top with cilantro."],
+    tip: "Add lime juice off the heat. Boiling it turns the soup bitter." },
+
+  { id: "som-tam", cuisine: "thai", name: "Som Tam", native: "ส้มตำ", heat: 3, time: 15, servings: 2, size: "1 plate (200 g)",
+    blurb: "Pounded green papaya salad with tomatoes, long beans, dried shrimp and peanuts.",
+    tags: ["salad", "no-cook", "gluten-free", "light"],
+    n: { kcal: 160, fat: 5, sat: 1, sodium: 900, carbs: 24, fiber: 5, sugar: 14, protein: 5 },
+    ing: [[300,"g","green papaya","shredded"],[2,"cloves","garlic"],[2,"","bird's eye chilies"],[4,"","long beans","5 cm pieces"],[8,"","cherry tomatoes","halved"],[1,"tbsp","dried shrimp"],[2,"tbsp","roasted peanuts"],[2,"tbsp","lime juice"],[1.5,"tbsp","fish sauce"],[1,"tbsp","palm sugar"]],
+    steps: ["Pound garlic and chilies in a mortar to a rough paste.","Add long beans and dried shrimp, bruise lightly.","Add palm sugar, fish sauce and lime juice; stir with the pestle until the sugar dissolves.","Add papaya and tomatoes. Pound gently while turning with a spoon so the papaya soaks up the dressing.","Top with peanuts and serve right away."] ,
+    tip: "Bruise, don't smash. You want the papaya to stay crunchy." },
+
+  { id: "oyakodon", cuisine: "japanese", name: "Oyakodon", native: "親子丼", heat: 0, time: 25, servings: 2, size: "1 bowl with rice (450 g)",
+    blurb: "Chicken and onion simmered in dashi, set with softly cooked egg over rice.",
+    tags: ["rice bowl"],
+    n: { kcal: 630, fat: 15, sat: 4, sodium: 1250, carbs: 85, fiber: 2, sugar: 10, protein: 38 },
+    ing: [[250,"g","chicken thigh","bite-size pieces"],[0.5,"","onion","thinly sliced"],[3,"","eggs","lightly beaten"],[160,"ml","dashi"],[2,"tbsp","soy sauce"],[2,"tbsp","mirin"],[1,"tsp","sugar"],[2,"cups","cooked Japanese rice","hot"],[1,"","scallion","sliced"]],
+    steps: ["Bring dashi, soy sauce, mirin and sugar to a simmer in a small pan.","Add onion and cook 2 minutes, then add chicken and simmer 5 minutes until cooked through.","Pour two-thirds of the egg in a circle over the chicken. Cover and cook 1 minute.","Add the remaining egg, cover, and turn off the heat. Let it sit 30 seconds; the top should still be runny.","Slide onto bowls of hot rice and scatter with scallion."],
+    tip: "Pouring the egg in two stages gives you both set and silky egg in each bite." },
+
+  { id: "miso-soup", cuisine: "japanese", name: "Miso Soup", native: "味噌汁", heat: 0, time: 15, servings: 4, size: "1 bowl (250 ml)",
+    blurb: "Dashi with miso, silken tofu, wakame and scallion.",
+    tags: ["soup", "light", "vegetarian-option"],
+    n: { kcal: 75, fat: 3, sat: 0.5, sodium: 780, carbs: 6, fiber: 1, sugar: 2, protein: 6 },
+    ing: [[1,"L","dashi","use kombu dashi for vegetarian"],[4,"tbsp","white or awase miso"],[200,"g","silken tofu","cubed"],[2,"tbsp","dried wakame"],[2,"","scallions","thinly sliced"]],
+    steps: ["Soak wakame in cold water for 5 minutes, then drain.","Heat dashi until just steaming. Add tofu and wakame and warm through.","Turn off the heat. Dissolve the miso in a ladle of dashi, then stir it back into the pot.","Serve at once, topped with scallions."],
+    tip: "Never boil soup once the miso is in. It dulls the flavor and aroma." },
+
+  { id: "teriyaki", cuisine: "japanese", name: "Chicken Teriyaki", native: "照り焼き", heat: 0, time: 25, servings: 4, size: "1 thigh (180 g), rice not included",
+    blurb: "Pan-crisped chicken thighs glazed in soy, mirin and sake.",
+    tags: ["pan-fry"],
+    n: { kcal: 330, fat: 16, sat: 4, sodium: 1050, carbs: 14, fiber: 0, sugar: 11, protein: 30 },
+    ing: [[4,"","chicken thighs","boneless, skin on"],[0.5,"tsp","salt"],[1,"tbsp","neutral oil"],[4,"tbsp","soy sauce"],[4,"tbsp","mirin"],[2,"tbsp","sake"],[1,"tbsp","sugar"],[1,"tsp","sesame seeds"]],
+    steps: ["Pat chicken dry and salt lightly. Mix soy, mirin, sake and sugar.","Cook chicken skin-side down in oil over medium heat for 7 minutes, pressing flat, until deeply golden.","Flip and cook 4 minutes more. Wipe out excess fat.","Pour in the sauce and simmer, turning the chicken, until the sauce reduces to a glossy glaze, about 3 minutes.","Slice, spoon over the glaze and sprinkle with sesame."],
+    tip: "Wipe the rendered fat before adding the sauce, or the glaze won't cling." },
+
+  { id: "onigiri", cuisine: "japanese", name: "Salmon Onigiri", native: "おにぎり", heat: 0, time: 30, servings: 6, size: "1 rice ball (110 g)",
+    blurb: "Hand-pressed rice balls filled with flaked salted salmon and wrapped in nori.",
+    tags: ["snack", "rice"],
+    n: { kcal: 190, fat: 2, sat: 0.5, sodium: 320, carbs: 38, fiber: 1, sugar: 0, protein: 5 },
+    ing: [[3,"cups","cooked Japanese rice","warm"],[120,"g","salmon fillet"],[1,"tsp","salt","plus more for hands"],[3,"sheets","nori","cut in half"],[1,"tsp","sesame seeds"]],
+    steps: ["Salt the salmon, then grill or pan-fry until cooked through. Flake and remove bones.","Wet your hands and rub them with a pinch of salt.","Take about 1/2 cup rice, make a hollow in the center and add a spoonful of salmon.","Close the rice around the filling and press into a triangle with three or four firm squeezes.","Wrap the base in nori just before eating so it stays crisp."],
+    tip: "Press firmly but briefly. Overworked rice turns dense and pasty." },
+
+  { id: "adobo", cuisine: "filipino", name: "Chicken Adobo", native: "Adobong Manok", heat: 0, time: 50, servings: 4, size: "2 pieces with sauce (250 g)",
+    blurb: "Chicken braised in vinegar, soy sauce, garlic, bay leaves and black peppercorns.",
+    tags: ["braise", "one-pot"],
+    n: { kcal: 420, fat: 27, sat: 7, sodium: 1500, carbs: 6, fiber: 0, sugar: 2, protein: 36 },
+    ing: [[1,"kg","chicken thighs and drumsticks","bone in"],[120,"ml","cane or white vinegar"],[80,"ml","soy sauce"],[1,"head","garlic","cloves smashed"],[3,"","bay leaves"],[1,"tsp","whole black peppercorns","cracked"],[240,"ml","water"],[1,"tbsp","brown sugar","optional"],[1,"tbsp","neutral oil"]],
+    steps: ["Combine chicken, soy sauce and half the garlic. Marinate 30 minutes if you have time.","Brown the chicken in oil, skin-side down, until golden. Set aside.","Fry the remaining garlic briefly, then return the chicken with the marinade, vinegar, water, bay leaves and pepper.","Bring to a boil and do not stir for 2 minutes so the vinegar's sharpness cooks off.","Cover and simmer 30 minutes. Uncover and reduce the sauce until it coats a spoon. Add sugar if you like it rounder."],
+    tip: "Adobo tastes better the next day, once the vinegar and garlic have had time to settle." },
+
+  { id: "sinigang", cuisine: "filipino", name: "Sinigang na Baboy", native: "Sinigang", heat: 1, time: 75, servings: 6, size: "1 bowl (450 g)",
+    blurb: "Sour tamarind broth with pork ribs, radish, long beans, eggplant and water spinach.",
+    tags: ["soup", "gluten-free"],
+    n: { kcal: 310, fat: 19, sat: 7, sodium: 1100, carbs: 10, fiber: 3, sugar: 4, protein: 24 },
+    ing: [[1,"kg","pork ribs","cut in pieces"],[2,"L","water"],[1,"","onion","quartered"],[2,"","tomatoes","quartered"],[40,"g","tamarind soup base","or 250 g fresh tamarind"],[1,"","daikon radish","sliced"],[6,"","long beans","5 cm pieces"],[1,"","eggplant","sliced"],[1,"bunch","kangkong (water spinach)"],[2,"","long green chilies"],[3,"tbsp","fish sauce"]],
+    steps: ["Simmer pork in water, skimming the foam, for 10 minutes.","Add onion and tomatoes; simmer covered 45 minutes until the pork is tender.","Stir in the tamarind base. Add radish and cook 5 minutes.","Add long beans, eggplant and chilies; cook 4 minutes.","Season with fish sauce, then add kangkong and turn off the heat."],
+    tip: "Taste the broth before the vegetables go in. Adjust the sourness now, while it's easy to judge." },
+
+  { id: "pancit", cuisine: "filipino", name: "Pancit Bihon", native: "Pancit", heat: 0, time: 40, servings: 6, size: "1 plate (300 g)",
+    blurb: "Thin rice noodles tossed with chicken, cabbage, carrots and snow peas in a soy-calamansi sauce.",
+    tags: ["noodles", "party"],
+    n: { kcal: 380, fat: 11, sat: 2, sodium: 1050, carbs: 52, fiber: 3, sugar: 5, protein: 18 },
+    ing: [[400,"g","bihon rice noodles"],[300,"g","chicken breast","poached and shredded"],[750,"ml","chicken stock"],[4,"tbsp","soy sauce"],[2,"tbsp","oyster sauce"],[2,"tbsp","neutral oil"],[1,"","onion","sliced"],[4,"cloves","garlic","minced"],[2,"","carrots","julienned"],[0.25,"head","cabbage","shredded"],[100,"g","snow peas"],[4,"","calamansi or 1 lemon","to serve"]],
+    steps: ["Soak noodles in water for 10 minutes; drain.","Sauté onion and garlic in oil. Add chicken, soy and oyster sauce.","Add carrots and snow peas; cook 2 minutes. Remove half the vegetables to top later.","Pour in the stock, bring to a boil, then add noodles. Toss until the liquid is absorbed.","Add cabbage and toss 1 minute. Top with the reserved vegetables and serve with calamansi."],
+    tip: "Long noodles mean long life. Pancit is the standard birthday dish, so don't cut them." },
+
+  { id: "lumpia", cuisine: "filipino", name: "Lumpiang Shanghai", native: "Lumpia", heat: 0, time: 60, servings: 6, size: "5 rolls (150 g)",
+    blurb: "Thin fried spring rolls filled with seasoned ground pork, carrot and onion.",
+    tags: ["fried", "party"],
+    n: { kcal: 410, fat: 26, sat: 7, sodium: 620, carbs: 26, fiber: 1, sugar: 3, protein: 17 },
+    ing: [[500,"g","ground pork"],[1,"","carrot","finely grated"],[1,"","onion","minced"],[3,"cloves","garlic","minced"],[1,"","egg"],[1,"tbsp","soy sauce"],[0.5,"tsp","black pepper"],[30,"","spring roll wrappers"],[500,"ml","oil for frying"],[null,"","sweet chili sauce","to serve"]],
+    steps: ["Mix pork, carrot, onion, garlic, egg, soy sauce and pepper.","Spread a thin line of filling along one edge of a wrapper. Roll tightly, fold in nothing, and seal with a dab of water.","Cut each long roll into 2 or 3 pieces.","Fry at 170 °C in batches for 4–5 minutes, until deep golden.","Drain on a rack and serve hot with sweet chili sauce."],
+    tip: "Keep the rolls pencil-thin so the pork cooks through before the wrapper burns." },
+
+  { id: "bibimbap", cuisine: "korean", name: "Bibimbap", native: "비빔밥", heat: 2, time: 45, servings: 4, size: "1 bowl with rice (500 g)",
+    blurb: "Rice topped with seasoned vegetables, beef, a fried egg and gochujang sauce.",
+    tags: ["rice bowl"],
+    n: { kcal: 610, fat: 17, sat: 4, sodium: 1100, carbs: 88, fiber: 6, sugar: 12, protein: 25 },
+    ing: [[4,"cups","cooked short-grain rice"],[200,"g","beef sirloin","thinly sliced"],[200,"g","spinach","blanched"],[200,"g","bean sprouts","blanched"],[1,"","carrot","julienned"],[1,"","zucchini","julienned"],[4,"","shiitake mushrooms","sliced"],[4,"","eggs"],[4,"tbsp","gochujang"],[2,"tbsp","sesame oil"],[1,"tbsp","soy sauce"],[1,"tbsp","sugar"],[1,"tbsp","sesame seeds"]],
+    steps: ["Marinate beef with soy sauce, half the sugar and a teaspoon of sesame oil.","Season spinach and sprouts separately with a pinch of salt and sesame oil.","Sauté carrot, zucchini and mushrooms one at a time, a minute each. Then cook the beef.","Mix gochujang with remaining sugar, 1 tbsp sesame oil and 1 tbsp water for the sauce.","Fry the eggs sunny side up. Arrange everything over rice, egg in the center, and mix at the table."],
+    tip: "Use a hot stone or cast-iron bowl to get crisp rice (nurungji) on the bottom." },
+
+  { id: "kimchi-jjigae", cuisine: "korean", name: "Kimchi Jjigae", native: "김치찌개", heat: 2, time: 35, servings: 4, size: "1 bowl (400 g), rice not included",
+    blurb: "Stew of well-fermented kimchi, pork belly and tofu.",
+    tags: ["stew", "one-pot"],
+    n: { kcal: 320, fat: 21, sat: 7, sodium: 1500, carbs: 12, fiber: 3, sugar: 4, protein: 20 },
+    ing: [[400,"g","sour kimchi","chopped, plus 120 ml juice"],[250,"g","pork belly","sliced"],[300,"g","firm tofu","sliced"],[1,"","onion","sliced"],[1,"tbsp","gochugaru"],[1,"tbsp","gochujang"],[1,"tsp","sugar"],[700,"ml","water or anchovy stock"],[2,"","scallions","cut"],[1,"tsp","sesame oil"]],
+    steps: ["Fry pork belly in a pot until some fat renders, 3 minutes.","Add kimchi and sesame oil; fry together 5 minutes until the kimchi softens.","Add gochugaru, gochujang, sugar, kimchi juice and water. Bring to a boil.","Add onion and simmer 15 minutes.","Lay tofu on top, simmer 5 minutes more and finish with scallions."],
+    tip: "Old, very sour kimchi makes the best jjigae. Fresh kimchi tastes flat here." },
+
+  { id: "pho", cuisine: "vietnamese", name: "Phở Bò", native: "Phở", heat: 0, time: 240, servings: 6, size: "1 bowl (650 g)",
+    blurb: "Beef bone broth scented with charred onion, ginger, star anise and cinnamon, over rice noodles.",
+    tags: ["soup", "noodles", "weekend"],
+    n: { kcal: 450, fat: 10, sat: 4, sodium: 1600, carbs: 55, fiber: 2, sugar: 5, protein: 32 },
+    ing: [[2,"kg","beef marrow and knuckle bones"],[500,"g","beef brisket"],[4,"L","water"],[2,"","onions","halved"],[100,"g","ginger","halved lengthwise"],[5,"","star anise"],[1,"","cinnamon stick"],[4,"","cloves"],[4,"tbsp","fish sauce"],[1,"tbsp","rock sugar"],[600,"g","flat rice noodles"],[250,"g","beef eye of round","sliced paper-thin"],[null,"","Thai basil, bean sprouts, lime, chilies","to serve"]],
+    steps: ["Blanch bones in boiling water for 10 minutes, then drain and rinse to keep the broth clear.","Char onions and ginger directly over a flame or under the broiler until blackened in spots.","Toast the spices in a dry pan until fragrant.","Simmer bones, brisket, onion, ginger and spices in water for 3 hours, skimming. Remove brisket after 1.5 hours.","Strain. Season with fish sauce and rock sugar.","Cook noodles, place in bowls with sliced brisket and raw beef, and ladle boiling broth over the top."],
+    tip: "The broth must be at a full boil when you pour it, so it cooks the raw beef in the bowl." },
+
+  { id: "goi-cuon", cuisine: "vietnamese", name: "Gỏi Cuốn", native: "Gỏi cuốn", heat: 0, time: 30, servings: 4, size: "2 rolls with peanut sauce (180 g)",
+    blurb: "Fresh rice paper rolls with shrimp, pork, vermicelli and herbs, with hoisin-peanut sauce.",
+    tags: ["no-fry", "light"],
+    n: { kcal: 290, fat: 10, sat: 2, sodium: 480, carbs: 38, fiber: 3, sugar: 8, protein: 14 },
+    ing: [[8,"","rice paper rounds"],[12,"","cooked shrimp","halved lengthwise"],[150,"g","pork loin","boiled and thinly sliced"],[100,"g","rice vermicelli","cooked"],[8,"","lettuce leaves"],[1,"cup","mint and Thai basil"],[1,"bunch","garlic chives"],[3,"tbsp","hoisin sauce"],[2,"tbsp","peanut butter"],[3,"tbsp","warm water"],[1,"tbsp","crushed peanuts"]],
+    steps: ["Dip a rice paper in warm water for 2 seconds and lay it flat; it softens as you work.","Layer lettuce, noodles, herbs and pork on the lower third.","Place three shrimp halves, cut side up, just above the filling.","Fold in the sides and roll tightly, tucking a chive so it pokes out.","Whisk hoisin, peanut butter and water for the sauce; top with crushed peanuts."],
+    tip: "Pull the paper from the water while it is still a little stiff. It finishes softening on the board." },
+
+  { id: "mapo-tofu", cuisine: "chinese", name: "Mapo Tofu", native: "麻婆豆腐", heat: 3, time: 25, servings: 4, size: "1 serving (300 g), rice not included",
+    blurb: "Soft tofu in a numbing, fiery Sichuan sauce of doubanjiang and ground pork.",
+    tags: ["Sichuan", "one-pan"],
+    n: { kcal: 340, fat: 25, sat: 6, sodium: 1250, carbs: 9, fiber: 2, sugar: 2, protein: 20 },
+    ing: [[500,"g","soft tofu","2 cm cubes"],[150,"g","ground pork"],[2,"tbsp","doubanjiang","chili bean paste"],[1,"tbsp","fermented black beans","rinsed"],[1,"tbsp","chili oil"],[3,"cloves","garlic","minced"],[1,"tbsp","ginger","minced"],[240,"ml","chicken stock"],[1,"tsp","sugar"],[1,"tbsp","soy sauce"],[1,"tbsp","cornstarch","mixed with 3 tbsp water"],[1,"tsp","Sichuan peppercorns","toasted and ground"],[2,"","scallions","sliced"]],
+    steps: ["Simmer the tofu in salted water for 2 minutes to firm it. Drain.","Fry pork in a little oil until crisp and browned.","Add doubanjiang and fry until the oil turns red, then garlic, ginger and black beans.","Add stock, sugar and soy. Slide in the tofu and simmer 5 minutes without stirring; nudge the pan instead.","Thicken with the cornstarch slurry in two additions. Finish with chili oil, ground Sichuan pepper and scallions."],
+    tip: "Push the tofu with the back of a spatula rather than stirring, so the cubes stay whole." },
+
+  { id: "fried-rice", cuisine: "chinese", name: "Egg Fried Rice", native: "蛋炒饭", heat: 0, time: 15, servings: 2, size: "1 plate (300 g)",
+    blurb: "Day-old rice fried hard with egg, scallion and a little soy and white pepper.",
+    tags: ["rice", "quick", "vegetarian"],
+    n: { kcal: 480, fat: 16, sat: 3, sodium: 750, carbs: 68, fiber: 2, sugar: 1, protein: 14 },
+    ing: [[3,"cups","cold cooked rice","day old"],[3,"","eggs","beaten"],[2,"tbsp","neutral oil"],[3,"","scallions","whites and greens separated"],[1,"tbsp","light soy sauce"],[0.25,"tsp","white pepper"],[0.5,"tsp","salt"],[0.5,"cup","frozen peas","optional"]],
+    steps: ["Break up the cold rice with your hands so there are no clumps.","Heat the wok until smoking. Add oil, then eggs; scramble until just set and remove.","Fry scallion whites 20 seconds, then add rice. Toss and press against the wok for 3–4 minutes.","Add peas, salt, white pepper and soy around the edge of the wok so it sizzles.","Return the egg, toss with scallion greens and serve."],
+    tip: "Fresh rice is too wet and will clump. Spread it on a tray in the fridge for a few hours if you have to." },
+
+  { id: "chana-masala", cuisine: "indian", name: "Chana Masala", native: "चना मसाला", heat: 2, time: 40, servings: 4, size: "1 bowl (300 g), rice not included",
+    blurb: "Chickpeas simmered in a tangy onion-tomato gravy with garam masala and amchur.",
+    tags: ["curry", "vegan", "vegetarian", "gluten-free"],
+    n: { kcal: 320, fat: 11, sat: 1, sodium: 700, carbs: 44, fiber: 11, sugar: 8, protein: 13 },
+    ing: [[2,"cans","chickpeas","400 g each, drained"],[2,"tbsp","neutral oil"],[1,"tsp","cumin seeds"],[2,"","onions","finely chopped"],[1,"tbsp","ginger-garlic paste"],[2,"","green chilies","slit"],[3,"","tomatoes","pureed"],[1,"tsp","ground coriander"],[1,"tsp","Kashmiri chili powder"],[0.5,"tsp","turmeric"],[1,"tsp","garam masala"],[1,"tsp","amchur","dried mango powder"],[1,"tsp","salt"],[null,"","cilantro","to serve"]],
+    steps: ["Heat oil and fry the cumin seeds until they crackle.","Add onions and cook until deep golden, about 10 minutes.","Add ginger-garlic paste and chilies, fry 1 minute. Add the ground spices and fry 30 seconds.","Add tomato puree and cook until the oil separates from the masala.","Add chickpeas and 300 ml water. Simmer 15 minutes, mashing a few chickpeas to thicken.","Finish with garam masala, amchur and cilantro."],
+    tip: "Don't rush the onions. Their browning sets the depth of the whole gravy." },
+];
+
+const DV = { fat: 78, sat: 20, sodium: 2300, carbs: 275, fiber: 28, protein: 50 };
+const isVeg = r => r.tags.includes("vegetarian") || r.tags.includes("vegan");
+
+/* ------------------------------------------------------------------ *
+ *  Helpers                                                           *
+ * ------------------------------------------------------------------ */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const FRACS = [[0.125,"⅛"],[0.25,"¼"],[0.333,"⅓"],[0.5,"½"],[0.667,"⅔"],[0.75,"¾"]];
+function fmtQty(q, unit) {
+  if (q == null) return "";
+  if (["g", "ml"].includes(unit)) return (q >= 100 ? Math.round(q / 5) * 5 : Math.round(q)) + " " + unit;
+  if (unit === "kg" || unit === "L") return (Math.round(q * 100) / 100) + " " + unit;
+  // Whole things (eggs, cloves, leaves) round to the nearest half.
+  if (["", "cloves", "stalks", "slices", "sheets", "head", "bunch", "cans"].includes(unit)) q = Math.max(0.5, Math.round(q * 2) / 2);
+  const whole = Math.floor(q + 0.02), rest = q - whole;
+  let frac = "";
+  if (rest > 0.06) {
+    const best = FRACS.reduce((a, b) => Math.abs(b[0] - rest) < Math.abs(a[0] - rest) ? b : a);
+    frac = Math.abs(best[0] - rest) < 0.07 ? best[1] : "";
+    if (!frac) return (Math.round(q * 10) / 10) + (unit ? " " + unit : "");
+  }
+  return ((whole ? whole : "") + frac || "0") + (unit ? " " + unit : "");
+}
+function pct(v, dv) { return Math.round((v / dv) * 100) + "%"; }
+function fmtDate(iso) {
+  try { return new Date(iso + "T12:00:00").toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }); } catch { return iso; }
+}
+function todayISO() { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
+function heatMarks(h) { return h ? "<span aria-label='Spice level " + h + " of 3'>" + "●".repeat(h) + "<span style='opacity:.3'>" + "●".repeat(3 - h) + "</span></span>" : ""; }
+function starsHtml(n) { n = Math.round(n || 0); return "<span class='stars' aria-label='" + n + " of 5 stars'>" + "★".repeat(n) + "<span class='off'>" + "★".repeat(5 - n) + "</span></span>"; }
+let toastTimer;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2600); }
+function safeLS(get, key, val) { try { if (get) return localStorage.getItem(key); localStorage.setItem(key, val); } catch { return null; } }
+
+/* ------------------------------------------------------------------ *
+ *  Recipe browser                                                    *
+ * ------------------------------------------------------------------ */
+const state = { cuisine: "all", q: "", maxcal: 700, sort: "name", veg: false, mild: false };
+
+function renderChips() {
+  const counts = {};
+  RECIPES.forEach(r => counts[r.cuisine] = (counts[r.cuisine] || 0) + 1);
+  const items = [["all", "All", RECIPES.length], ...Object.entries(CUISINES).map(([k, v]) => [k, v.label, counts[k] || 0])];
+  $("#cuisine-chips").innerHTML = items.map(([k, label, n]) =>
+    `<button class="chip" data-cuisine="${k}" aria-pressed="${state.cuisine === k}">${label}<span class="n num">${n}</span></button>`).join("");
+}
+
+function filtered() {
+  const q = state.q.trim().toLowerCase();
+  let list = RECIPES.filter(r =>
+    (state.cuisine === "all" || r.cuisine === state.cuisine) &&
+    r.n.kcal <= state.maxcal &&
+    (!state.veg || isVeg(r)) &&
+    (!state.mild || r.heat === 0) &&
+    (!q || [r.name, r.native, r.blurb, CUISINES[r.cuisine].label, ...r.tags, ...r.ing.map(i => i[2])].join(" ").toLowerCase().includes(q)));
+  const by = {
+    name: (a, b) => a.name.localeCompare(b.name),
+    "cal-asc": (a, b) => a.n.kcal - b.n.kcal,
+    "cal-desc": (a, b) => b.n.kcal - a.n.kcal,
+    protein: (a, b) => b.n.protein - a.n.protein,
+    time: (a, b) => a.time - b.time,
+  }[state.sort];
+  return list.sort(by);
+}
+
+function fmtTime(m) { return m >= 60 ? Math.floor(m / 60) + " h" + (m % 60 ? " " + (m % 60) + " m" : "") : m + " min"; }
+
+function renderGrid() {
+  const list = filtered();
+  $("#count-recipes").textContent = RECIPES.length;
+  if (!list.length) {
+    $("#grid").innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>No dishes match</h3>Loosen the calorie limit or clear the search to see more.</div>`;
+    return;
+  }
+  $("#grid").innerHTML = list.map(r => `
+    <button class="card c-${r.cuisine}" data-recipe="${r.id}" aria-label="Open ${esc(r.name)}">
+      <div class="plate">
+        <span class="flag">${CUISINES[r.cuisine].label}</span>
+        <span class="heat">${heatMarks(r.heat)}</span>
+        <span class="native" lang="${{ thai: "th", japanese: "ja", korean: "ko", chinese: "zh", vietnamese: "vi", indian: "hi", filipino: "fil" }[r.cuisine]}">${esc(r.native)}</span>
+      </div>
+      <div class="body">
+        <h3>${esc(r.name)}</h3>
+        <p class="blurb">${esc(r.blurb)}</p>
+        <div class="tags">${r.tags.slice(0, 3).map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+        <div class="facts num"><span><b>${r.n.kcal}</b> kcal</span><span><b>${r.n.protein} g</b> protein</span><span><b>${fmtTime(r.time)}</b></span><span>serves <b>${r.servings}</b></span></div>
+      </div>
+    </button>`).join("");
+}
+
+/* Recipe dialog */
+let openRecipe = null, rServings = 0, nfMode = "serving";
+function showRecipe(id) {
+  const r = RECIPES.find(x => x.id === id); if (!r) return;
+  openRecipe = r; rServings = r.servings; nfMode = "serving";
+  $("#r-eyebrow").textContent = CUISINES[r.cuisine].label + (r.heat ? " · spice " + "●".repeat(r.heat) : " · mild");
+  $("#r-title").innerHTML = esc(r.name) + (r.native !== r.name ? ` <span style="font-weight:600;color:var(--muted);font-size:.7em">${esc(r.native)}</span>` : "");
+  $("#r-sub").textContent = r.blurb;
+  renderRecipeBody();
+  const dlg = $("#recipe-dlg");
+  if (!dlg.open) dlg.showModal();
+  dlg.scrollTop = 0;
+}
+
+function renderRecipeBody() {
+  const r = openRecipe, k = rServings / r.servings;
+  const done = new Set(JSON.parse(safeLS(true, "rb-steps-" + r.id) || "[]"));
+  const m = r.n, mult = nfMode === "batch" ? rServings : 1;
+  const kcalP = m.protein * 4, kcalC = m.carbs * 4, kcalF = m.fat * 9, tot = kcalP + kcalC + kcalF;
+  const v = x => Math.round(x * mult * 10) / 10;
+  $("#r-body").innerHTML = `
+    <div class="meta-row num">
+      <div><span class="v">${fmtTime(r.time)}</span><span class="k">total time</span></div>
+      <div><span class="v">${m.kcal}</span><span class="k">kcal per serving</span></div>
+      <div><span class="v">${esc(r.size.split(" (")[0])}</span><span class="k">serving size</span></div>
+      <div><span class="v">${r.servings}</span><span class="k">servings in original</span></div>
+    </div>
+    <div class="recipe-layout">
+      <div style="min-width:0">
+        <h3 class="section-title">Ingredients
+          <span style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-weight:600;color:var(--ink)">
+            Servings
+            <span class="stepper"><button type="button" id="sv-dec" aria-label="Fewer servings">−</button><output id="sv-out" class="num">${rServings}</output><button type="button" id="sv-inc" aria-label="More servings">+</button></span>
+          </span>
+        </h3>
+        <ul class="ingredients">
+          ${r.ing.map(([q, u, item, note], i) => `
+            <li><label><input type="checkbox" id="ing-${r.id}-${i}"><span class="q num">${q == null ? "" : esc(fmtQty(q * k, u))}</span><span>${esc(item)}${note ? ` <span class="note">· ${esc(note)}</span>` : ""}</span></label></li>`).join("")}
+        </ul>
+        <h3 class="section-title">Method <span style="text-transform:none;letter-spacing:0;font-weight:400">Tap a step when it's done</span></h3>
+        <ol class="steps">
+          ${r.steps.map((s, i) => `<li><button type="button" data-step="${i}" aria-pressed="${done.has(i)}">${esc(s)}</button></li>`).join("")}
+        </ol>
+        <p class="tip"><b>Cook's note.</b> ${esc(r.tip)}</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px">
+          <button type="button" class="btn" id="cooked-this">I cooked this · log it</button>
+          <button type="button" class="btn ghost" id="reset-steps">Reset checklist</button>
+        </div>
+      </div>
+      <aside style="min-width:0">
+        <div class="nf" aria-label="Nutrition facts">
+          <h4>Nutrition Facts</h4>
+          <div class="rule-1" style="margin-top:4px"></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;font-weight:800;font-size:15px;padding-top:2px"><span>Serving size</span><span style="text-align:right">${esc(r.size)}</span></div>
+          <div class="toggle" role="group" aria-label="Show values for">
+            <button type="button" data-nf="serving" aria-pressed="${nfMode === "serving"}">Per serving</button>
+            <button type="button" data-nf="batch" aria-pressed="${nfMode === "batch"}">Whole pot (${rServings})</button>
+          </div>
+          <div class="rule-8"></div>
+          <div class="small bold">Amount per ${nfMode === "batch" ? "recipe" : "serving"}</div>
+          <div class="cal num"><span>Calories</span><span>${Math.round(m.kcal * mult)}</span></div>
+          <div class="rule-4"></div>
+          <div class="small bold" style="text-align:right">% Daily Value*</div>
+          <div class="row first num"><span><b>Total Fat</b> ${v(m.fat)}g</span><b>${pct(m.fat * mult, DV.fat)}</b></div>
+          <div class="row indent num"><span>Saturated Fat ${v(m.sat)}g</span><b>${pct(m.sat * mult, DV.sat)}</b></div>
+          <div class="row num"><span><b>Sodium</b> ${Math.round(m.sodium * mult)}mg</span><b>${pct(m.sodium * mult, DV.sodium)}</b></div>
+          <div class="row num"><span><b>Total Carbohydrate</b> ${v(m.carbs)}g</span><b>${pct(m.carbs * mult, DV.carbs)}</b></div>
+          <div class="row indent num"><span>Dietary Fiber ${v(m.fiber)}g</span><b>${pct(m.fiber * mult, DV.fiber)}</b></div>
+          <div class="row indent num"><span>Total Sugars ${v(m.sugar)}g</span><span></span></div>
+          <div class="row num"><span><b>Protein</b> ${v(m.protein)}g</span><b>${pct(m.protein * mult, DV.protein)}</b></div>
+          <div class="rule-8"></div>
+          <div class="small">* The % Daily Value tells you how much a nutrient in a serving of food contributes to a daily diet. 2,000 calories a day is used for general nutrition advice. Values are estimates.</div>
+        </div>
+        <div class="macro-bar" aria-hidden="true">
+          <span style="width:${kcalP / tot * 100}%;background:var(--indigo)"></span>
+          <span style="width:${kcalC / tot * 100}%;background:var(--warn)"></span>
+          <span style="width:${kcalF / tot * 100}%;background:var(--chili)"></span>
+        </div>
+        <div class="macro-legend num">
+          <span><i style="background:var(--indigo)"></i>Protein ${Math.round(kcalP / tot * 100)}%</span>
+          <span><i style="background:var(--warn)"></i>Carbs ${Math.round(kcalC / tot * 100)}%</span>
+          <span><i style="background:var(--chili)"></i>Fat ${Math.round(kcalF / tot * 100)}%</span>
+        </div>
+        <p style="font-size:13px;color:var(--muted);margin:8px 0 0">Share of calories from each macronutrient.</p>
+      </aside>
+    </div>`;
+}
+
+$("#r-body").addEventListener("click", e => {
+  const t = e.target.closest("button"); if (!t) return;
+  const r = openRecipe;
+  if (t.id === "sv-dec" && rServings > 1) { rServings--; renderRecipeBody(); }
+  else if (t.id === "sv-inc" && rServings < 24) { rServings++; renderRecipeBody(); }
+  else if (t.dataset.nf) { nfMode = t.dataset.nf; renderRecipeBody(); }
+  else if (t.dataset.step != null) {
+    const done = new Set(JSON.parse(safeLS(true, "rb-steps-" + r.id) || "[]"));
+    const i = +t.dataset.step; done.has(i) ? done.delete(i) : done.add(i);
+    safeLS(false, "rb-steps-" + r.id, JSON.stringify([...done]));
+    t.setAttribute("aria-pressed", done.has(i));
+    if (done.size === r.steps.length) toast("All steps done. Snap a photo and log it.");
+  }
+  else if (t.id === "reset-steps") { safeLS(false, "rb-steps-" + r.id, "[]"); renderRecipeBody(); }
+  else if (t.id === "cooked-this") { $("#recipe-dlg").close(); switchTab("log"); openEntryForm(r.id); }
+});
+
+/* ------------------------------------------------------------------ *
+ *  Storage: Claude artifact db + assets when available,              *
+ *  otherwise IndexedDB in this browser.                              *
+ * ------------------------------------------------------------------ */
+const Store = {
+  mode: "local", canWrite: true, entries: [], db: null, assets: null, idb: null, urls: new Map(),
+  onChange: () => {},
+
+  async initLocal() {
+    try {
+      this.idb = await new Promise((res, rej) => {
+        const req = indexedDB.open("rice-bowl-cookbook", 1);
+        req.onupgradeneeded = () => req.result.createObjectStore("entries", { keyPath: "id" });
+        req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
+      });
+      this.entries = await this._idbAll();
+    } catch {
+      this.idb = null; // private mode etc: entries live in memory for this visit
+    }
+    this.onChange();
+  },
+  _tx(mode) { return this.idb.transaction("entries", mode).objectStore("entries"); },
+  _idbAll() { return new Promise((res, rej) => { const r = this._tx("readonly").getAll(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  _idbPut(v) { return new Promise((res, rej) => { const r = this._tx("readwrite").put(v); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); },
+  _idbDel(id) { return new Promise((res, rej) => { const r = this._tx("readwrite").delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); },
+
+  async tryCloud() {
+    if (!window.claude || typeof window.claude.use !== "function") return;
+    const db = await window.claude.use("db").catch(() => null);
+    if (!db) return;
+    const assets = await window.claude.use("assets").catch(() => null);
+    this.db = db; this.assets = assets; this.mode = "cloud"; this.canWrite = !!assets;
+    db.collection("journal").onSnapshot(snap => {
+      this.entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      this.onChange();
+    }, () => { toast("Couldn't load your saved entries. Reload to try again."); });
+  },
+
+  list() { return [...this.entries].sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.createdAt || 0) - (a.createdAt || 0)); },
+
+  photoSrc(e) {
+    if (e.photoId) return "/_blob/" + e.photoId;
+    if (e.photoBlob) {
+      if (!this.urls.has(e.id)) this.urls.set(e.id, URL.createObjectURL(e.photoBlob));
+      return this.urls.get(e.id);
+    }
+    return "";
+  },
+
+  async add(entry, blob) {
+    entry.id = entry.id || ("e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
+    entry.createdAt = Date.now();
+    if (this.mode === "cloud") {
+      if (blob) { const up = await this.assets.upload(blob, { type: "image/jpeg" }); entry.photoId = up.id; }
+      const { id, ...body } = entry;
+      await this.db.collection("journal").doc(id).set(body);
+      // snapshot listener refreshes the list
+      return entry;
+    }
+    entry.photoBlob = blob || null;
+    if (this.idb) await this._idbPut(entry);
+    this.entries.push(entry); this.onChange();
+    return entry;
+  },
+
+  async update(id, patch) {
+    if (this.mode === "cloud") { await this.db.collection("journal").doc(id).update(patch); return; }
+    const e = this.entries.find(x => x.id === id); if (!e) return;
+    Object.assign(e, patch);
+    if (this.idb) await this._idbPut(e);
+    this.onChange();
+  },
+
+  async remove(e) {
+    if (this.mode === "cloud") {
+      await this.db.collection("journal").doc(e.id).delete();
+      if (e.photoId) await this.assets.delete(e.photoId).catch(() => {});
+      return;
+    }
+    if (this.idb) await this._idbDel(e.id);
+    if (this.urls.has(e.id)) { URL.revokeObjectURL(this.urls.get(e.id)); this.urls.delete(e.id); }
+    this.entries = this.entries.filter(x => x.id !== e.id); this.onChange();
+  },
+
+  async getBlob(e) {
+    if (e.photoBlob) return e.photoBlob;
+    if (e.photoId) { const r = await fetch("/_blob/" + e.photoId); if (r.ok) return await r.blob(); }
+    return null;
+  },
+};
+
+/* ------------------------------------------------------------------ *
+ *  Photo handling and rating                                         *
+ * ------------------------------------------------------------------ */
+async function decodeImage(file) {
+  if (window.createImageBitmap) {
+    try { return await createImageBitmap(file, { imageOrientation: "from-image" }); } catch {}
+  }
+  return await new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => { res(img); setTimeout(() => URL.revokeObjectURL(url), 0); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("decode")); };
+    img.src = url;
+  });
+}
+
+/* Downscale to at most 1600 px on the long side and re-encode as JPEG. */
+async function preparePhoto(file) {
+  const img = await decodeImage(file);
+  const w = img.width, h = img.height, s = Math.min(1, 1600 / Math.max(w, h));
+  const c = document.createElement("canvas"); c.width = Math.round(w * s); c.height = Math.round(h * s);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  const blob = await new Promise(res => c.toBlob(res, "image/jpeg", 0.86));
+  return { blob, img };
+}
+
+/* On-device photo check. Scores what the camera captured, not the taste:
+   exposure, contrast, color vibrancy, sharpness and whether the plate fills the frame. */
+function analyzePhoto(img) {
+  const S = 256, sc = Math.min(1, S / Math.max(img.width, img.height));
+  const w = Math.max(8, Math.round(img.width * sc)), h = Math.max(8, Math.round(img.height * sc));
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const ctx = c.getContext("2d", { willReadFrequently: true }); ctx.drawImage(img, 0, 0, w, h);
+  const d = ctx.getImageData(0, 0, w, h).data, n = w * h, L = new Float32Array(n);
+  let sumL = 0, sumL2 = 0, sumS = 0, warm = 0, clipped = 0;
+  for (let i = 0, p = 0; i < n; i++, p += 4) {
+    const r = d[p] / 255, g = d[p + 1] / 255, b = d[p + 2] / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    const l = 0.2126 * r + 0.7152 * g + 0.0722 * b; L[i] = l;
+    sumL += l; sumL2 += l * l;
+    const sat = mx === 0 ? 0 : (mx - mn) / mx; sumS += sat;
+    if (mx > 0.98 || mx < 0.03) clipped++;
+    if (sat > 0.25 && mx > 0.2) {
+      let hue = 0; const dl = mx - mn || 1;
+      if (mx === r) hue = ((g - b) / dl) % 6; else if (mx === g) hue = (b - r) / dl + 2; else hue = (r - g) / dl + 4;
+      hue *= 60; if (hue < 0) hue += 360;
+      if (hue < 65 || hue > 330) warm++;
+    }
+  }
+  const mean = sumL / n, sd = Math.sqrt(Math.max(0, sumL2 / n - mean * mean)), satMean = sumS / n;
+  // Laplacian variance (sharpness) and center-vs-edge detail (framing)
+  let lapSum = 0, lapSum2 = 0, center = 0, total = 0;
+  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+    const i = y * w + x;
+    const lap = 4 * L[i] - L[i - 1] - L[i + 1] - L[i - w] - L[i + w];
+    lapSum += lap; lapSum2 += lap * lap;
+    const a = Math.abs(lap); total += a;
+    if (x > w * 0.2 && x < w * 0.8 && y > h * 0.2 && y < h * 0.8) center += a;
+  }
+  const m2 = (w - 2) * (h - 2), lapVar = lapSum2 / m2 - (lapSum / m2) ** 2;
+  const clamp = v => Math.max(0, Math.min(10, v));
+  const band = (v, lo, hi, width) => v < lo ? clamp(10 - (lo - v) / width * 10) : v > hi ? clamp(10 - (v - hi) / width * 10) : 10;
+  const scores = {
+    Lighting: band(mean, 0.38, 0.66, 0.3) * (1 - Math.min(0.5, clipped / n)),
+    Contrast: band(sd, 0.16, 0.3, 0.14),
+    Color: clamp(band(satMean, 0.28, 0.6, 0.28) * 0.75 + Math.min(1, warm / n * 3) * 2.5),
+    Sharpness: clamp((Math.log10(lapVar * 1e4 + 1) - 0.6) / 1.6 * 10),
+    Framing: clamp(((center / (total || 1)) - 0.2) / 0.3 * 10),
+  };
+  Object.keys(scores).forEach(k => scores[k] = Math.round(scores[k] * 10) / 10);
+  const overall = Math.round((scores.Lighting * 0.25 + scores.Contrast * 0.15 + scores.Color * 0.25 + scores.Sharpness * 0.2 + scores.Framing * 0.15) * 10) / 10;
+  const advice = {
+    Lighting: mean < 0.38 ? "It's a bit dark. Shoot near a window in daylight." : "Highlights are washing out. Step away from direct light or tap to expose on the food.",
+    Contrast: sd < 0.16 ? "The image looks flat. Side light from a window adds depth to the food." : "Shadows are harsh. Diffuse the light with a sheet of paper or a curtain.",
+    Color: "Colors look muted. Natural light and a fresh garnish (herbs, chili, lime) make the plate pop.",
+    Sharpness: "The photo is soft. Hold still, tap to focus on the food and wipe the lens.",
+    Framing: "The plate doesn't fill the frame. Move closer or crop so the food is the subject.",
+  };
+  const weakest = Object.entries(scores).sort((a, b) => a[1] - b[1]).slice(0, 2).filter(([, v]) => v < 8).map(([k]) => advice[k]);
+  const verdict = overall >= 8 ? "Strong shot. Good light, color and focus." : overall >= 6 ? "Solid photo with room to polish." : overall >= 4 ? "The dish is there, but the photo undersells it." : "Hard to see the food clearly in this one.";
+  return { source: "device", overall, scores, verdict, tips: weakest.length ? weakest : ["Nothing to fix here. Try an overhead angle next time for variety."] };
+}
+
+let sampleFn = null, sampleImages = false;
+async function initSample() {
+  if (!window.claude || typeof window.claude.use !== "function") return;
+  const s = await window.claude.use("sample").catch(() => null);
+  if (!s) return;
+  const lim = await s.limits().catch(() => null);
+  if (lim && lim.images) { sampleFn = s; sampleImages = true; }
+  updateModeNote();
+}
+
+async function rateWithClaude(blob, entry) {
+  const r = RECIPES.find(x => x.id === entry.recipeId);
+  const context = r
+    ? `It is meant to be ${r.name} (${CUISINES[r.cuisine].label}). Reference: ${r.blurb} Key ingredients: ${r.ing.slice(0, 8).map(i => i[2]).join(", ")}.`
+    : `The cook calls it "${entry.name}".`;
+  const prompt = `You are judging a home cook's photo of a dish they made. ${context}
+Cook's notes: ${(entry.notes || "none").slice(0, 600)}
+
+Look at the photo and score each of these from 0 to 10 (one decimal allowed):
+- Presentation: plating, arrangement, garnish, clean plate edges.
+- Color: how appetizing and vibrant it looks.
+- Execution: visible cooking quality (doneness, browning, texture, sauce consistency).
+- Authenticity: how closely it resembles the named dish as it's usually served.
+- Photo: lighting, focus and framing.
+Then give "overall" (0-10, your holistic judgment, not just the average), a one-sentence "verdict" that is specific to what you see, and exactly two short, concrete "tips" for next time.
+If the photo does not show food, set every score to 0 and say so in the verdict.
+Reply with only JSON like:
+{"scores":{"Presentation":7.5,"Color":8,"Execution":7,"Authenticity":8.5,"Photo":6},"overall":7.6,"verdict":"...","tips":["...","..."]}`;
+  const out = await sampleFn.json(prompt, { images: [blob], cache: false });
+  const scores = {};
+  for (const k of ["Presentation", "Color", "Execution", "Authenticity", "Photo"]) {
+    const v = Number(out?.scores?.[k]); scores[k] = isFinite(v) ? Math.max(0, Math.min(10, v)) : 0;
+  }
+  const overall = Math.max(0, Math.min(10, Number(out?.overall) || 0));
+  return {
+    source: "claude", overall: Math.round(overall * 10) / 10, scores,
+    verdict: String(out?.verdict || "").slice(0, 300),
+    tips: (Array.isArray(out?.tips) ? out.tips : []).slice(0, 2).map(t => String(t).slice(0, 200)),
+  };
+}
+
+async function ratePhoto(blob, img, entry) {
+  if (sampleFn && sampleImages) {
+    try { return await rateWithClaude(blob, entry); }
+    catch (e) {
+      if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed", "images_unavailable"].includes(e?.code)) {
+        sampleFn = null; updateModeNote();
+      }
+      toast("Claude couldn't rate this one, so it was scored on this device instead.");
+    }
+  }
+  return analyzePhoto(img);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Kitchen log UI                                                    *
+ * ------------------------------------------------------------------ */
+function updateModeNote() {
+  const parts = [];
+  parts.push(Store.mode === "cloud"
+    ? "Entries and photos are saved with this cookbook and follow you across devices."
+    : "Entries and photos are saved in this browser only. Clearing site data removes them.");
+  parts.push(sampleFn
+    ? "Photos are rated by Claude, which looks at plating, color, cooking and how close it is to the real dish."
+    : "Photos are rated on this device from lighting, contrast, color, sharpness and framing. It judges the photo, not the flavor.");
+  if (!Store.canWrite) parts.push("You can view this log but not add to it.");
+  $("#mode-note").textContent = parts.join(" ");
+  $("#rate-hint").textContent = sampleFn ? "Claude will rate the photo after you save. This uses your Claude usage." : "The photo is scored on this device after you save.";
+  $("#new-entry").hidden = !Store.canWrite;
+}
+
+function renderLog() {
+  const list = Store.list();
+  $("#count-log").textContent = list.length || "";
+  const rated = list.filter(e => e.rating);
+  const avg = rated.length ? (rated.reduce((s, e) => s + e.rating.overall, 0) / rated.length).toFixed(1) : "–";
+  const best = rated.length ? rated.reduce((a, b) => (b.rating.overall > a.rating.overall ? b : a)) : null;
+  const cuisinesCooked = new Set(list.map(e => RECIPES.find(r => r.id === e.recipeId)?.cuisine).filter(Boolean));
+  $("#stats").innerHTML = `
+    <div class="stat"><div class="v num">${list.length}</div><div class="k">dishes logged</div></div>
+    <div class="stat"><div class="v num">${avg}</div><div class="k">avg photo score</div></div>
+    <div class="stat"><div class="v num">${cuisinesCooked.size}/${Object.keys(CUISINES).length}</div><div class="k">cuisines cooked</div></div>
+    ${best ? `<div class="stat" style="min-width:0"><div class="v" style="font-size:20px;line-height:30px">${esc(best.name)}</div><div class="k">best plate · ${best.rating.overall}</div></div>` : ""}`;
+
+  if (!list.length) {
+    $("#entries").innerHTML = `<div class="empty" style="grid-column:1/-1">
+      <h3>Nothing cooked yet</h3>
+      Pick a recipe, make it, then log it here with a photo of your plate. Each photo gets a score out of 10 and two tips for next time.
+      ${Store.canWrite ? `<div style="margin-top:16px"><button class="btn" data-action="new">+ Log your first dish</button></div>` : ""}</div>`;
+    return;
+  }
+  $("#entries").innerHTML = list.map(e => {
+    const src = Store.photoSrc(e), r = RECIPES.find(x => x.id === e.recipeId), rt = e.rating;
+    return `<article class="entry" data-id="${esc(e.id)}">
+      <div class="ph">
+        ${src ? `<img src="${esc(src)}" alt="Photo of ${esc(e.name)}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'noimg',textContent:'Photo unavailable'}))">` : `<div class="noimg">No photo</div>`}
+        ${rt ? `<div class="score-badge num">${rt.overall.toFixed(1)}<small>/10</small></div>` : ""}
+      </div>
+      <div class="eb">
+        <div class="when">${esc(fmtDate(e.date))}${r ? " · " + CUISINES[r.cuisine].label : ""}</div>
+        <h3>${esc(e.name)}</h3>
+        ${e.taste ? `<div style="font-size:13px;color:var(--muted)">Taste ${starsHtml(e.taste)}</div>` : ""}
+        ${e.notes ? `<p class="notes">${esc(e.notes)}</p>` : ""}
+        ${e.rating ? verdictHtml(e.rating) : e.pending ? `<div class="verdict"><span class="src"><span class="spinner"></span> Rating photo…</span></div>` : ""}
+        ${Store.canWrite ? `<div class="actions">
+          ${src ? `<button class="btn ghost" data-action="rerate">${e.rating ? "Re-rate photo" : "Rate photo"}</button>` : ""}
+          ${r ? `<button class="btn ghost" data-action="recipe">Recipe</button>` : ""}
+          <button class="btn danger" data-action="delete">Delete</button>
+        </div>` : ""}
+      </div>
+    </article>`;
+  }).join("");
+}
+
+function verdictHtml(rt) {
+  return `<div class="verdict">
+    <span class="src">${rt.source === "claude" ? "Rated by Claude" : "On-device photo check"}</span>
+    ${rt.verdict ? `<p>${esc(rt.verdict)}</p>` : ""}
+    <div class="bars num">${Object.entries(rt.scores).map(([k, v]) => `<span>${esc(k)}</span><span class="track"><span class="fill" style="width:${v * 10}%"></span></span><span class="val">${(+v).toFixed(1)}</span>`).join("")}</div>
+    ${rt.tips?.length ? `<ul>${rt.tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+  </div>`;
+}
+
+/* Entry form */
+let formBlob = null, formImg = null, formTaste = 0, pendingDelete = null;
+function renderTasteStars() {
+  $("#e-stars").innerHTML = [1, 2, 3, 4, 5].map(i =>
+    `<button type="button" role="radio" aria-checked="${formTaste === i}" aria-label="${i} star${i > 1 ? "s" : ""}" class="${i <= formTaste ? "on" : ""}" data-star="${i}">★</button>`).join("");
+}
+function openEntryForm(recipeId) {
+  if (!Store.canWrite) return;
+  formBlob = null; formImg = null; formTaste = 0;
+  $("#entry-form").reset();
+  $("#e-recipe").innerHTML = `<option value="">Something else (not in the book)</option>` +
+    Object.entries(CUISINES).map(([k, c]) => `<optgroup label="${c.label}">${RECIPES.filter(r => r.cuisine === k).map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join("")}</optgroup>`).join("");
+  $("#e-recipe").value = recipeId || "";
+  $("#e-name").value = recipeId ? RECIPES.find(r => r.id === recipeId).name : "";
+  $("#e-date").value = todayISO();
+  $("#e-preview").hidden = true; $("#drop-text").textContent = "Drop a photo here or click to choose";
+  $("#e-err").textContent = ""; $("#e-save").disabled = false; $("#e-save").textContent = "Save and rate";
+  renderTasteStars();
+  $("#entry-dlg").showModal();
+}
+
+async function takeFile(file) {
+  $("#e-err").textContent = "";
+  if (!file) return;
+  if (!/^image\//.test(file.type) && !/\.(jpe?g|png|webp|gif)$/i.test(file.name)) { $("#e-err").textContent = "That file isn't an image. Choose a JPEG, PNG, WebP or GIF."; return; }
+  try {
+    $("#drop-text").textContent = "Reading photo…";
+    const { blob, img } = await preparePhoto(file);
+    formBlob = blob; formImg = img;
+    const p = $("#e-preview"); if (p.src.startsWith("blob:")) URL.revokeObjectURL(p.src);
+    p.src = URL.createObjectURL(blob); p.hidden = false;
+    $("#drop-text").textContent = "Click to choose a different photo";
+  } catch {
+    formBlob = null; formImg = null; $("#e-preview").hidden = true;
+    $("#drop-text").textContent = "Drop a photo here or click to choose";
+    $("#e-err").textContent = "This browser can't open that photo. iPhone HEIC files often fail; export it as JPEG and try again.";
+  }
+}
+
+$("#e-photo").addEventListener("change", e => takeFile(e.target.files[0]));
+const drop = $("#drop");
+["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => takeFile(e.dataTransfer.files[0]));
+$("#e-stars").addEventListener("click", e => { const b = e.target.closest("[data-star]"); if (!b) return; formTaste = +b.dataset.star === formTaste ? 0 : +b.dataset.star; renderTasteStars(); });
+$("#e-recipe").addEventListener("change", e => { const r = RECIPES.find(x => x.id === e.target.value); if (r) $("#e-name").value = r.name; });
+
+$("#entry-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("#e-name").value.trim();
+  if (!name) { $("#e-err").textContent = "Give the dish a name."; $("#e-name").focus(); return; }
+  if (!formBlob) { $("#e-err").textContent = "Add a photo of your plate so it can be rated."; return; }
+  const btn = $("#e-save"); btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Saving`;
+  const entry = { recipeId: $("#e-recipe").value || null, name, date: $("#e-date").value || todayISO(), notes: $("#e-notes").value.trim(), taste: formTaste || null, rating: null };
+  let saved;
+  try { saved = await Store.add({ ...entry, pending: true }, formBlob); }
+  catch (err) {
+    btn.disabled = false; btn.textContent = "Save and rate";
+    $("#e-err").textContent = err?.code === "quota_or_state" ? "Storage is full. Delete an older entry and try again." : "Couldn't save the entry. Check your connection and try again.";
+    return;
+  }
+  const blob = formBlob, img = formImg;
+  $("#entry-dlg").close();
+  toast(sampleFn ? "Saved. Claude is rating your photo…" : "Saved. Rating your photo…");
+  const rating = await ratePhoto(blob, img, saved);
+  await Store.update(saved.id, { rating, pending: false }).catch(() => toast("Rated, but couldn't save the score."));
+  toast(`${saved.name}: ${rating.overall.toFixed(1)} / 10`);
+});
+
+$("#entries").addEventListener("click", async e => {
+  const b = e.target.closest("[data-action]"); if (!b) return;
+  if (b.dataset.action === "new") return openEntryForm();
+  const card = b.closest("[data-id]"), entry = Store.entries.find(x => x.id === card.dataset.id); if (!entry) return;
+  if (b.dataset.action === "recipe") showRecipe(entry.recipeId);
+  else if (b.dataset.action === "delete") {
+    pendingDelete = entry; $("#confirm-text").textContent = `“${entry.name}” from ${fmtDate(entry.date)} and its photo will be removed for good.`;
+    $("#confirm-dlg").showModal();
+  } else if (b.dataset.action === "rerate") {
+    b.disabled = true; b.innerHTML = `<span class="spinner"></span> Rating`;
+    try {
+      const blob = await Store.getBlob(entry); if (!blob) throw 0;
+      const img = await decodeImage(blob);
+      const rating = await ratePhoto(blob, img, entry);
+      await Store.update(entry.id, { rating, pending: false });
+      toast(`New score: ${rating.overall.toFixed(1)} / 10`);
+    } catch { toast("Couldn't load that photo to rate it."); }
+    renderLog();
+  }
+});
+$("#confirm-yes").addEventListener("click", async () => {
+  const e = pendingDelete; $("#confirm-dlg").close(); if (!e) return;
+  try { await Store.remove(e); toast("Entry deleted"); } catch { toast("Couldn't delete the entry. Try again."); }
+});
+
+/* ------------------------------------------------------------------ *
+ *  Wiring                                                            *
+ * ------------------------------------------------------------------ */
+function switchTab(which) {
+  const isLog = which === "log";
+  $("#tab-recipes").setAttribute("aria-selected", !isLog); $("#tab-log").setAttribute("aria-selected", isLog);
+  $("#view-recipes").hidden = isLog; $("#view-log").hidden = !isLog;
+  safeLS(false, "rb-tab", which);
+}
+$("#tab-recipes").addEventListener("click", () => switchTab("recipes"));
+$("#tab-log").addEventListener("click", () => switchTab("log"));
+$("#new-entry").addEventListener("click", () => openEntryForm());
+
+$("#cuisine-chips").addEventListener("click", e => { const b = e.target.closest("[data-cuisine]"); if (!b) return; state.cuisine = b.dataset.cuisine; renderChips(); renderGrid(); });
+$("#q").addEventListener("input", e => { state.q = e.target.value; renderGrid(); });
+$("#maxcal").addEventListener("input", e => { state.maxcal = +e.target.value; $("#maxcal-out").textContent = (state.maxcal >= 700 ? "Any" : state.maxcal + " kcal"); renderGrid(); });
+$("#sort").addEventListener("change", e => { state.sort = e.target.value; renderGrid(); });
+$("#f-veg").addEventListener("click", e => { state.veg = !state.veg; e.currentTarget.setAttribute("aria-pressed", state.veg); renderGrid(); });
+$("#f-mild").addEventListener("click", e => { state.mild = !state.mild; e.currentTarget.setAttribute("aria-pressed", state.mild); renderGrid(); });
+$("#grid").addEventListener("click", e => { const c = e.target.closest("[data-recipe]"); if (c) showRecipe(c.dataset.recipe); });
+
+document.querySelectorAll("dialog").forEach(d => {
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-close]")) d.close(); });
+});
+
+Store.onChange = renderLog;
+$("#maxcal-out").textContent = "Any";
+renderChips(); renderGrid(); renderLog(); updateModeNote();
+if (safeLS(true, "rb-tab") === "log") switchTab("log");
+
+(async () => {
+  await Store.initLocal();
+  await Promise.all([Store.tryCloud(), initSample()]);
+  updateModeNote(); renderLog();
+})();
+</script>
+</body>
+</html>
